@@ -1,0 +1,95 @@
+/* Premium Design System - Football Simulator
+   Curated color palette inspired by modern sports broadcasting */
+
+:root {
+  /* Base - Noir/Dark palette */
+  --bg-primary: #0a0a0b;
+  --bg-secondary: #111113;
+  --bg-tertiary: #18181b;
+  --bg-card: #1c1c1f;
+  --bg-elevated: #27272a;
+
+  /* Text */
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+
+  /* Accent - Warm Gold (premium feel) */
+  --accent-primary: #d4af37;
+  --accent-secondary: #c9a227;
+  --accent-glow: rgba(212, 175, 55, 0.15);
+
+  /* Status Colors */
+  --success: #22c55e;
+  --success-muted: rgba(34, 197, 94, 0.15);
+  --danger: #ef4444;
+  --danger-muted: rgba(239, 68, 68, 0.15);
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+
+  /* World Cup Theme */
+  --wc-primary: #1e3a5f;
+  --wc-accent: #c9a227;
+
+  /* Champions League Theme */
+  --ucl-primary: #0d1b2a;
+  --ucl-accent: #d4af37;
+
+  /* Fixture Generator Theme */
+  --fg-primary: #1a1a2e;
+  --fg-accent: #e94560;
+}
+
+/* Premium Card Style */
+.premium-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+}
+
+.premium-card:hover {
+  border-color: var(--border-default);
+}
+
+/* Accent Glow Effect */
+.premium-glow {
+  box-shadow: 0 0 60px -12px var(--accent-glow);
+}
+
+/* Gold accent text */
+.text-gold {
+  color: var(--accent-primary);
+}
+
+/* Premium button base */
+.premium-btn {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.premium-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-strong);
+}
+
+.premium-btn-accent {
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary) 0%,
+    var(--accent-secondary) 100%
+  );
+  color: #0a0a0b;
+  border: none;
+}
+
+.premium-btn-accent:hover {
+  filter: brightness(1.1);
+}
