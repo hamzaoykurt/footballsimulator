@@ -1,9 +1,18 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { CL_TEAMS } from '../data/clTeams';
 
 const CLContext = createContext();
 
 export const useCL = () => useContext(CLContext);
+
+/**
+ * SIMPLIFIED CL CONTEXT
+ * 
+ * Key changes:
+ * - Added `isReady` flag  
+ * - Cleaner state management
+ * - Single initialization path
+ */
 
 // Match result calculator
 const calculateMatchResult = (teamA, teamB) => {
@@ -36,20 +45,7 @@ const calculateMatchResult = (teamA, teamB) => {
     return k - 1;
   };
   
-  let scoreA = getGoals(xGA);
-  let scoreB = getGoals(xGB);
-  
-  if (strengthDiff > 15 && scoreB >= scoreA) {
-    if (Math.random() > 0.05) {
-      scoreA = scoreB + 1 + Math.floor(Math.random() * 2);
-    }
-  } else if (strengthDiff < -15 && scoreA >= scoreB) {
-    if (Math.random() > 0.05) {
-      scoreB = scoreA + 1 + Math.floor(Math.random() * 2);
-    }
-  }
-  
-  return { scoreA, scoreB };
+  return { scoreA: getGoals(xGA), scoreB: getGoals(xGB) };
 };
 
 // Simulate two-leg match
@@ -61,13 +57,9 @@ const simulateTwoLegMatch = (teamA, teamB) => {
   const aggB = leg1.scoreA + leg2.scoreB;
 
   let winner;
-  if (aggA > aggB) {
-    winner = teamA;
-  } else if (aggB > aggA) {
-    winner = teamB;
-  } else {
-    winner = Math.random() > 0.5 ? teamA : teamB;
-  }
+  if (aggA > aggB) winner = teamA;
+  else if (aggB > aggA) winner = teamB;
+  else winner = Math.random() > 0.5 ? teamA : teamB;
 
   return {
     leg1ScoreA: leg1.scoreB,
@@ -82,20 +74,17 @@ const simulateTwoLegMatch = (teamA, teamB) => {
 
 export const CLProvider = ({ children }) => {
   const [phase, setPhase] = useState('SETUP');
+  const [isReady, setIsReady] = useState(false);
   
-  // Playoff matches - separated by side
+  // Playoff matches
   const [leftPlayoffs, setLeftPlayoffs] = useState([]);
   const [rightPlayoffs, setRightPlayoffs] = useState([]);
   
-  // R16 potential opponents (before draw)
-  const [r16Potentials, setR16Potentials] = useState([]);
-  const [drawComplete, setDrawComplete] = useState(false);
-  
-  // R16 matches after draw
+  // R16 matches
   const [leftR16, setLeftR16] = useState([]);
   const [rightR16, setRightR16] = useState([]);
   
-  // Further rounds
+  // QF, SF, Final
   const [leftQF, setLeftQF] = useState([]);
   const [rightQF, setRightQF] = useState([]);
   const [leftSF, setLeftSF] = useState(null);
@@ -104,8 +93,9 @@ export const CLProvider = ({ children }) => {
   const [champion, setChampion] = useState(null);
 
   // Initialize tournament
-  const initializeTournament = () => {
-    // Create left playoff matches
+  const startTournament = useCallback(() => {
+    console.log('[CLContext] Starting tournament...');
+    
     const leftMatches = CL_TEAMS.leftPlayoffs.map(p => ({
       ...p,
       leg1ScoreA: null, leg1ScoreB: null,
@@ -114,7 +104,6 @@ export const CLProvider = ({ children }) => {
       winner: null, played: false,
     }));
 
-    // Create right playoff matches
     const rightMatches = CL_TEAMS.rightPlayoffs.map(p => ({
       ...p,
       leg1ScoreA: null, leg1ScoreB: null,
@@ -123,87 +112,68 @@ export const CLProvider = ({ children }) => {
       winner: null, played: false,
     }));
 
-    // Set up potential R16 opponents (pairs)
-    const potentials = CL_TEAMS.directQualifierPairs.map(pair => ({
-      ...pair,
-      leftTeam: null, // Will be assigned after draw
-      rightTeam: null,
-    }));
-
     setLeftPlayoffs(leftMatches);
     setRightPlayoffs(rightMatches);
-    setR16Potentials(potentials);
+    setLeftR16([]);
+    setRightR16([]);
+    setLeftQF([]);
+    setRightQF([]);
+    setLeftSF(null);
+    setRightSF(null);
+    setFinalMatch(null);
+    setChampion(null);
+    setIsReady(true);
     setPhase('PLAYOFF');
-  };
+    
+    console.log('[CLContext] Phase set to PLAYOFF');
+  }, []);
 
-  // Simulate a playoff match
-  const simulatePlayoff = (matchId, side) => {
+  // Simulate playoff
+  const simulatePlayoff = useCallback((matchId, side) => {
     const setter = side === 'left' ? setLeftPlayoffs : setRightPlayoffs;
     
     setter(prev => prev.map(m => {
       if (m.id !== matchId || m.played) return m;
-      
       const result = simulateTwoLegMatch(m.home, m.away);
       return { ...m, ...result, played: true };
     }));
-  };
-
-  // Select playoff winner manually
-  const selectPlayoffWinner = (matchId, winnerId, side) => {
-    const setter = side === 'left' ? setLeftPlayoffs : setRightPlayoffs;
-    
-    setter(prev => prev.map(m => {
-      if (m.id !== matchId || m.played) return m;
-      
-      const winner = m.home.id === winnerId ? m.home : m.away;
-      const isHomeWin = m.home.id === winnerId;
-      
-      return {
-        ...m,
-        leg1ScoreA: isHomeWin ? 2 : 0,
-        leg1ScoreB: isHomeWin ? 0 : 1,
-        leg2ScoreA: isHomeWin ? 1 : 0,
-        leg2ScoreB: isHomeWin ? 0 : 2,
-        aggScoreA: isHomeWin ? 3 : 0,
-        aggScoreB: isHomeWin ? 0 : 3,
-        winner,
-        played: true,
-      };
-    }));
-  };
+  }, []);
 
   // Simulate all playoffs
-  const simulateAllPlayoffs = () => {
-    leftPlayoffs.forEach(m => { if (!m.played) simulatePlayoff(m.id, 'left'); });
-    rightPlayoffs.forEach(m => { if (!m.played) simulatePlayoff(m.id, 'right'); });
-  };
+  const simulateAllPlayoffs = useCallback(() => {
+    setLeftPlayoffs(prev => prev.map(m => {
+      if (m.played) return m;
+      const result = simulateTwoLegMatch(m.home, m.away);
+      return { ...m, ...result, played: true };
+    }));
+    
+    setRightPlayoffs(prev => prev.map(m => {
+      if (m.played) return m;
+      const result = simulateTwoLegMatch(m.home, m.away);
+      return { ...m, ...result, played: true };
+    }));
+  }, []);
 
-  // Perform R16 draw - assigns direct qualifiers to left/right
-  const performR16Draw = () => {
+  // Initialize R16
+  const initializeR16 = useCallback(() => {
     const leftWinners = leftPlayoffs.filter(m => m.played).map(m => m.winner);
     const rightWinners = rightPlayoffs.filter(m => m.played).map(m => m.winner);
     
-    if (leftWinners.length < 4 || rightWinners.length < 4) return;
+    if (!leftWinners || !rightWinners || leftWinners.length < 4 || rightWinners.length < 4) return;
 
-    // Draw: for each pair, randomly assign one to left, one to right
+    // Draw: randomly assign direct qualifiers
     const drawnPairs = CL_TEAMS.directQualifierPairs.map(pair => {
       const goesLeft = Math.random() > 0.5;
       return {
-        ...pair,
         leftTeam: goesLeft ? pair.teamA : pair.teamB,
         rightTeam: goesLeft ? pair.teamB : pair.teamA,
       };
     });
 
-    // Create R16 matches
-    // Left R16: playoff winner vs drawn direct qualifier
     const leftR16Matches = leftWinners.map((playoffWinner, i) => ({
       id: `R16-L${i}`,
       teamA: drawnPairs[i].leftTeam,
       teamB: playoffWinner,
-      position: i,
-      leg1ScoreA: null, leg1ScoreB: null,
-      leg2ScoreA: null, leg2ScoreB: null,
       aggScoreA: null, aggScoreB: null,
       winner: null, played: false,
     }));
@@ -212,129 +182,89 @@ export const CLProvider = ({ children }) => {
       id: `R16-R${i}`,
       teamA: drawnPairs[i].rightTeam,
       teamB: playoffWinner,
-      position: i,
-      leg1ScoreA: null, leg1ScoreB: null,
-      leg2ScoreA: null, leg2ScoreB: null,
       aggScoreA: null, aggScoreB: null,
       winner: null, played: false,
     }));
 
-    setR16Potentials(drawnPairs);
     setLeftR16(leftR16Matches);
     setRightR16(rightR16Matches);
-    setDrawComplete(true);
     setPhase('R16');
-  };
+  }, [leftPlayoffs, rightPlayoffs]);
 
-  // Simulate R16 match
-  const simulateR16 = (matchId, side) => {
-    const setter = side === 'left' ? setLeftR16 : setRightR16;
-    
-    setter(prev => prev.map(m => {
-      if (m.id !== matchId || m.played) return m;
+  // Simulate R16
+  const simulateAllR16 = useCallback(() => {
+    setLeftR16(prev => prev.map(m => {
+      if (m.played) return m;
       const result = simulateTwoLegMatch(m.teamA, m.teamB);
       return { ...m, ...result, played: true };
     }));
-  };
-
-  const selectR16Winner = (matchId, winnerId, side) => {
-    const setter = side === 'left' ? setLeftR16 : setRightR16;
     
-    setter(prev => prev.map(m => {
-      if (m.id !== matchId || m.played) return m;
-      const winner = m.teamA.id === winnerId ? m.teamA : m.teamB;
-      return { ...m, winner, played: true, aggScoreA: winner === m.teamA ? 3 : 0, aggScoreB: winner === m.teamB ? 3 : 0 };
+    setRightR16(prev => prev.map(m => {
+      if (m.played) return m;
+      const result = simulateTwoLegMatch(m.teamA, m.teamB);
+      return { ...m, ...result, played: true };
     }));
-  };
-
-  const simulateAllR16 = () => {
-    leftR16.forEach(m => { if (!m.played) simulateR16(m.id, 'left'); });
-    rightR16.forEach(m => { if (!m.played) simulateR16(m.id, 'right'); });
-  };
+  }, []);
 
   // Initialize QF
-  const initializeQF = () => {
+  const initializeQF = useCallback(() => {
     const leftWinners = leftR16.filter(m => m.played).map(m => m.winner);
     const rightWinners = rightR16.filter(m => m.played).map(m => m.winner);
 
     if (leftWinners.length < 4 || rightWinners.length < 4) return;
 
-    // QF matches: 0vs1, 2vs3
     setLeftQF([
-      { id: 'QF-L0', teamA: leftWinners[0], teamB: leftWinners[1], winner: null, played: false, aggScoreA: null, aggScoreB: null },
-      { id: 'QF-L1', teamA: leftWinners[2], teamB: leftWinners[3], winner: null, played: false, aggScoreA: null, aggScoreB: null },
+      { id: 'QF-L0', teamA: leftWinners[0], teamB: leftWinners[1], winner: null, played: false },
+      { id: 'QF-L1', teamA: leftWinners[2], teamB: leftWinners[3], winner: null, played: false },
     ]);
     setRightQF([
-      { id: 'QF-R0', teamA: rightWinners[0], teamB: rightWinners[1], winner: null, played: false, aggScoreA: null, aggScoreB: null },
-      { id: 'QF-R1', teamA: rightWinners[2], teamB: rightWinners[3], winner: null, played: false, aggScoreA: null, aggScoreB: null },
+      { id: 'QF-R0', teamA: rightWinners[0], teamB: rightWinners[1], winner: null, played: false },
+      { id: 'QF-R1', teamA: rightWinners[2], teamB: rightWinners[3], winner: null, played: false },
     ]);
     setPhase('QF');
-  };
+  }, [leftR16, rightR16]);
 
   // Simulate QF
-  const simulateQF = (matchId, side) => {
-    const setter = side === 'left' ? setLeftQF : setRightQF;
-    setter(prev => prev.map(m => {
-      if (m.id !== matchId || m.played) return m;
+  const simulateAllQF = useCallback(() => {
+    setLeftQF(prev => prev.map(m => {
+      if (m.played) return m;
       const result = simulateTwoLegMatch(m.teamA, m.teamB);
       return { ...m, ...result, played: true };
     }));
-  };
-
-  const selectQFWinner = (matchId, winnerId, side) => {
-    const setter = side === 'left' ? setLeftQF : setRightQF;
-    setter(prev => prev.map(m => {
-      if (m.id !== matchId || m.played) return m;
-      const winner = m.teamA.id === winnerId ? m.teamA : m.teamB;
-      return { ...m, winner, played: true, aggScoreA: winner === m.teamA ? 2 : 0, aggScoreB: winner === m.teamB ? 2 : 0 };
+    
+    setRightQF(prev => prev.map(m => {
+      if (m.played) return m;
+      const result = simulateTwoLegMatch(m.teamA, m.teamB);
+      return { ...m, ...result, played: true };
     }));
-  };
-
-  const simulateAllQF = () => {
-    leftQF.forEach(m => { if (!m.played) simulateQF(m.id, 'left'); });
-    rightQF.forEach(m => { if (!m.played) simulateQF(m.id, 'right'); });
-  };
+  }, []);
 
   // Initialize SF
-  const initializeSF = () => {
+  const initializeSF = useCallback(() => {
     const leftWinners = leftQF.filter(m => m.played).map(m => m.winner);
     const rightWinners = rightQF.filter(m => m.played).map(m => m.winner);
 
     if (leftWinners.length < 2 || rightWinners.length < 2) return;
 
-    setLeftSF({ id: 'SF-L', teamA: leftWinners[0], teamB: leftWinners[1], winner: null, played: false, aggScoreA: null, aggScoreB: null });
-    setRightSF({ id: 'SF-R', teamA: rightWinners[0], teamB: rightWinners[1], winner: null, played: false, aggScoreA: null, aggScoreB: null });
+    setLeftSF({ id: 'SF-L', teamA: leftWinners[0], teamB: leftWinners[1], winner: null, played: false });
+    setRightSF({ id: 'SF-R', teamA: rightWinners[0], teamB: rightWinners[1], winner: null, played: false });
     setPhase('SF');
-  };
+  }, [leftQF, rightQF]);
 
   // Simulate SF
-  const simulateSF = (side) => {
-    const setter = side === 'left' ? setLeftSF : setRightSF;
-    const match = side === 'left' ? leftSF : rightSF;
-    
-    if (!match || match.played) return;
-    
-    const result = simulateTwoLegMatch(match.teamA, match.teamB);
-    setter({ ...match, ...result, played: true });
-  };
-
-  const selectSFWinner = (winnerId, side) => {
-    const setter = side === 'left' ? setLeftSF : setRightSF;
-    const match = side === 'left' ? leftSF : rightSF;
-    
-    if (!match || match.played) return;
-    
-    const winner = match.teamA.id === winnerId ? match.teamA : match.teamB;
-    setter({ ...match, winner, played: true, aggScoreA: winner === match.teamA ? 2 : 0, aggScoreB: winner === match.teamB ? 2 : 0 });
-  };
-
-  const simulateAllSF = () => {
-    if (leftSF && !leftSF.played) simulateSF('left');
-    if (rightSF && !rightSF.played) simulateSF('right');
-  };
+  const simulateAllSF = useCallback(() => {
+    if (leftSF && !leftSF.played) {
+      const result = simulateTwoLegMatch(leftSF.teamA, leftSF.teamB);
+      setLeftSF({ ...leftSF, ...result, played: true });
+    }
+    if (rightSF && !rightSF.played) {
+      const result = simulateTwoLegMatch(rightSF.teamA, rightSF.teamB);
+      setRightSF({ ...rightSF, ...result, played: true });
+    }
+  }, [leftSF, rightSF]);
 
   // Initialize Final
-  const initializeFinal = () => {
+  const initializeFinal = useCallback(() => {
     if (!leftSF?.played || !rightSF?.played) return;
     
     setFinalMatch({
@@ -347,10 +277,10 @@ export const CLProvider = ({ children }) => {
       played: false,
     });
     setPhase('FINAL');
-  };
+  }, [leftSF, rightSF]);
 
   // Simulate Final
-  const simulateFinal = () => {
+  const simulateFinal = useCallback(() => {
     if (!finalMatch || finalMatch.played) return;
     
     const result = calculateMatchResult(finalMatch.teamA, finalMatch.teamB);
@@ -362,24 +292,14 @@ export const CLProvider = ({ children }) => {
     setFinalMatch({ ...finalMatch, scoreA: result.scoreA, scoreB: result.scoreB, winner, played: true });
     setChampion(winner);
     setPhase('COMPLETE');
-  };
-
-  const selectFinalWinner = (winnerId) => {
-    if (!finalMatch || finalMatch.played) return;
-    
-    const winner = finalMatch.teamA.id === winnerId ? finalMatch.teamA : finalMatch.teamB;
-    setFinalMatch({ ...finalMatch, scoreA: winner === finalMatch.teamA ? 2 : 1, scoreB: winner === finalMatch.teamB ? 2 : 1, winner, played: true });
-    setChampion(winner);
-    setPhase('COMPLETE');
-  };
+  }, [finalMatch]);
 
   // Reset
-  const resetTournament = () => {
+  const resetTournament = useCallback(() => {
     setPhase('SETUP');
+    setIsReady(false);
     setLeftPlayoffs([]);
     setRightPlayoffs([]);
-    setR16Potentials([]);
-    setDrawComplete(false);
     setLeftR16([]);
     setRightR16([]);
     setLeftQF([]);
@@ -388,32 +308,98 @@ export const CLProvider = ({ children }) => {
     setRightSF(null);
     setFinalMatch(null);
     setChampion(null);
-  };
+  }, []);
+
+  // === MANUAL CONTROL ===
+  
+  // Manually select winner for any match
+  const setManualWinner = useCallback((matchId, winnerId, stage) => {
+    const createWinResult = (match, winnerId) => {
+      const teamA = match.home || match.teamA;
+      const teamB = match.away || match.teamB;
+      const winner = teamA?.id === winnerId ? teamA : teamB;
+      return {
+        leg1ScoreA: teamA?.id === winnerId ? 2 : 0,
+        leg1ScoreB: teamA?.id === winnerId ? 0 : 2,
+        leg2ScoreA: teamA?.id === winnerId ? 1 : 0,
+        leg2ScoreB: teamA?.id === winnerId ? 0 : 1,
+        aggScoreA: teamA?.id === winnerId ? 3 : 0,
+        aggScoreB: teamB?.id === winnerId ? 3 : 0,
+        winner,
+        played: true
+      };
+    };
+
+    if (stage === 'PLAYOFF') {
+      const isLeft = matchId.includes('-L');
+      const setter = isLeft ? setLeftPlayoffs : setRightPlayoffs;
+      setter(prev => prev.map(m => {
+        if (m.id !== matchId || m.played) return m;
+        return { ...m, ...createWinResult(m, winnerId) };
+      }));
+    } else if (stage === 'R16') {
+      const isLeft = matchId.includes('-L');
+      const setter = isLeft ? setLeftR16 : setRightR16;
+      setter(prev => prev.map(m => {
+        if (m.id !== matchId || m.played) return m;
+        return { ...m, ...createWinResult(m, winnerId) };
+      }));
+    } else if (stage === 'QF') {
+      const isLeft = matchId.includes('-L');
+      const setter = isLeft ? setLeftQF : setRightQF;
+      setter(prev => prev.map(m => {
+        if (m.id !== matchId || m.played) return m;
+        return { ...m, ...createWinResult(m, winnerId) };
+      }));
+    } else if (stage === 'SF') {
+      const isLeft = matchId.includes('-L');
+      if (isLeft && leftSF && !leftSF.played) {
+        setLeftSF({ ...leftSF, ...createWinResult(leftSF, winnerId) });
+      } else if (!isLeft && rightSF && !rightSF.played) {
+        setRightSF({ ...rightSF, ...createWinResult(rightSF, winnerId) });
+      }
+    } else if (stage === 'FINAL') {
+      if (finalMatch && !finalMatch.played) {
+        const teamA = finalMatch.teamA;
+        const teamB = finalMatch.teamB;
+        const winner = teamA?.id === winnerId ? teamA : teamB;
+        setFinalMatch({
+          ...finalMatch,
+          scoreA: teamA?.id === winnerId ? 2 : 0,
+          scoreB: teamB?.id === winnerId ? 2 : 0,
+          winner,
+          played: true
+        });
+        setChampion(winner);
+        setPhase('COMPLETE');
+      }
+    }
+  }, [leftSF, rightSF, finalMatch]);
 
   // Computed states
-  const allPlayoffsPlayed = leftPlayoffs.every(m => m.played) && rightPlayoffs.every(m => m.played) && leftPlayoffs.length > 0;
-  const allR16Played = leftR16.every(m => m.played) && rightR16.every(m => m.played) && leftR16.length > 0;
-  const allQFPlayed = leftQF.every(m => m.played) && rightQF.every(m => m.played) && leftQF.length > 0;
+  const allPlayoffsPlayed = leftPlayoffs.length > 0 && leftPlayoffs.every(m => m.played) && rightPlayoffs.every(m => m.played);
+  const allR16Played = leftR16.length > 0 && leftR16.every(m => m.played) && rightR16.every(m => m.played);
+  const allQFPlayed = leftQF.length > 0 && leftQF.every(m => m.played) && rightQF.every(m => m.played);
   const allSFPlayed = leftSF?.played && rightSF?.played;
 
   return (
     <CLContext.Provider value={{
       phase,
+      isReady,
       leftPlayoffs, rightPlayoffs,
-      r16Potentials, drawComplete,
       leftR16, rightR16,
       leftQF, rightQF,
       leftSF, rightSF,
       finalMatch, champion,
       
-      initializeTournament,
-      simulatePlayoff, selectPlayoffWinner, simulateAllPlayoffs,
-      performR16Draw,
-      simulateR16, selectR16Winner, simulateAllR16,
-      initializeQF, simulateQF, selectQFWinner, simulateAllQF,
-      initializeSF, simulateSF, selectSFWinner, simulateAllSF,
-      initializeFinal, simulateFinal, selectFinalWinner,
+      startTournament,
+      simulatePlayoff, simulateAllPlayoffs,
+      initializeR16, simulateAllR16,
+      initializeQF, simulateAllQF,
+      initializeSF, simulateAllSF,
+      initializeFinal, simulateFinal,
       resetTournament,
+      setManualWinner,
       
       allPlayoffsPlayed, allR16Played, allQFPlayed, allSFPlayed,
     }}>

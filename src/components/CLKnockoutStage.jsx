@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useCL } from '../context/CLContext';
-import { Trophy, Play, FastForward, RotateCcw, Crown, Shuffle } from 'lucide-react';
+import { Trophy, Play, FastForward, RotateCcw, Crown, Shuffle, Star, ChevronDown } from 'lucide-react';
 
-// Team Logo with fallback
+/**
+ * CLKnockoutStage - Vertical Tree Layout
+ * 
+ * Design: Top-to-bottom flow
+ * Playoffs → R16 → Quarters → Semis → Final
+ */
+
+// Team Logo
 const TeamLogo = ({ src, name, size = 'md' }) => {
   const [error, setError] = useState(false);
-  const sizes = { sm: 'w-5 h-5', md: 'w-7 h-7', lg: 'w-9 h-9', xl: 'w-12 h-12' };
+  const sizes = { sm: 'w-5 h-5', md: 'w-6 h-6', lg: 'w-8 h-8', xl: 'w-12 h-12' };
   
   if (error || !src) {
     return (
-      <div className={`${sizes[size]} rounded-full bg-zinc-700 flex items-center justify-center text-zinc-400 font-bold text-xs`}>
+      <div className={`${sizes[size]} rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 font-bold text-xs`}>
         {name?.charAt(0)}
       </div>
     );
@@ -18,146 +25,147 @@ const TeamLogo = ({ src, name, size = 'md' }) => {
   return <img src={src} alt={name} className={`${sizes[size]} object-contain`} onError={() => setError(true)} />;
 };
 
-// Compact Playoff Card - Two teams side by side
-const PlayoffCard = ({ match, onSimulate, onSelect, side }) => {
+// Compact Match Card (Playoff style)
+const CompactMatch = ({ match, onSimulate, onSelect, side }) => {
   if (!match) return null;
-  const isLeft = side === 'left';
-  const winnerA = match.winner?.id === match.home?.id;
-  const winnerB = match.winner?.id === match.away?.id;
+  const winnerA = match.winner?.id === (match.home?.id || match.teamA?.id);
+  const winnerB = match.winner?.id === (match.away?.id || match.teamB?.id);
+  const teamA = match.home || match.teamA;
+  const teamB = match.away || match.teamB;
 
   return (
-    <div className={`bg-zinc-900 rounded-lg border ${isLeft ? 'border-purple-900/50' : 'border-cyan-900/50'} w-40`}>
-      <div className="flex items-center justify-between px-2 py-2">
-        <div className="flex items-center gap-1">
-          <TeamLogo src={match.home?.logo} name={match.home?.name} size="sm" />
-          <span className={`text-xs font-semibold ${winnerA ? 'text-emerald-400' : winnerB ? 'text-zinc-600' : 'text-zinc-300'}`}>
-            {match.home?.shortName?.slice(0, 3)}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className={`text-xs font-semibold ${winnerB ? 'text-emerald-400' : winnerA ? 'text-zinc-600' : 'text-zinc-300'}`}>
-            {match.away?.shortName?.slice(0, 3)}
-          </span>
-          <TeamLogo src={match.away?.logo} name={match.away?.name} size="sm" />
-        </div>
-      </div>
-      <div className="px-2 pb-2">
-        {match.played ? (
-          <div className="flex items-center justify-center gap-1 text-emerald-400 text-xs">
-            <Crown className="w-3 h-3 text-amber-400" />
-            {match.winner?.shortName}
-          </div>
-        ) : (
-          <div className="flex gap-1">
-            <button onClick={() => onSelect(match.id, match.home.id, side)} className="flex-1 py-1 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded">
-              {match.home?.shortName?.slice(0, 3)}
-            </button>
-            <button onClick={() => onSimulate(match.id, side)} className={`px-2 ${isLeft ? 'bg-purple-900/60' : 'bg-cyan-900/60'} rounded`}>
-              <Play size={10} className="text-zinc-400" />
-            </button>
-            <button onClick={() => onSelect(match.id, match.away.id, side)} className="flex-1 py-1 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded">
-              {match.away?.shortName?.slice(0, 3)}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Potential Opponent Card (before draw)
-const PotentialCard = ({ pair }) => (
-  <div className="bg-zinc-900/80 rounded-lg border border-zinc-700 p-2 w-32 text-center">
-    <div className="flex items-center justify-center gap-1 mb-1">
-      <TeamLogo src={pair?.teamA?.logo} name={pair?.teamA?.name} size="sm" />
-      <span className="text-zinc-500 text-[10px]">or</span>
-      <TeamLogo src={pair?.teamB?.logo} name={pair?.teamB?.name} size="sm" />
-    </div>
-    <div className="text-[10px] text-zinc-600">vs Playoff Kazananı</div>
-  </div>
-);
-
-// Match Card for all rounds
-const MatchCard = ({ match, onSimulate, onSelect, side }) => {
-  if (!match) return <div className="w-32 h-16 bg-zinc-900/50 rounded-lg border border-zinc-800" />;
-  
-  const winnerA = match.winner?.id === match.teamA?.id;
-  const winnerB = match.winner?.id === match.teamB?.id;
-
-  return (
-    <div className="bg-zinc-900 rounded-lg border border-zinc-800 w-32 overflow-hidden">
-      <motion.div 
-        whileHover={!match.played ? { backgroundColor: 'rgba(39,39,42,0.8)' } : {}}
-        onClick={() => !match.played && onSelect?.(match.id, match.teamA?.id, side)}
-        className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer border-b border-zinc-800 ${winnerA ? 'bg-emerald-950/50' : winnerB ? 'opacity-40' : ''}`}
+    <div className="bg-zinc-900 rounded-lg border border-zinc-800 hover:border-zinc-700 overflow-hidden transition-all w-40">
+      {/* Team A */}
+      <div 
+        onClick={() => !match.played && onSelect?.(match.id, teamA?.id, side)}
+        className={`flex items-center gap-2 px-2.5 py-2 cursor-pointer hover:bg-zinc-800/50 border-b border-zinc-800
+          ${winnerA ? 'bg-emerald-500/10' : winnerB ? 'opacity-40' : ''}`}
       >
-        <TeamLogo src={match.teamA?.logo} name={match.teamA?.name} size="sm" />
-        <span className={`flex-1 text-xs font-medium truncate ${winnerA ? 'text-emerald-400' : 'text-zinc-300'}`}>{match.teamA?.shortName}</span>
-        {match.played && <span className="text-xs font-bold text-zinc-400">{match.aggScoreA ?? match.scoreA}</span>}
+        <TeamLogo src={teamA?.logo} name={teamA?.name} size="sm" />
+        <span className={`flex-1 text-xs font-medium truncate ${winnerA ? 'text-emerald-400' : 'text-zinc-200'}`}>
+          {teamA?.shortName || teamA?.name?.slice(0, 3)}
+        </span>
+        {match.played && <span className="text-xs font-bold text-white">{match.aggScoreA ?? match.scoreA}</span>}
         {winnerA && <Crown className="w-3 h-3 text-amber-400" />}
-      </motion.div>
-      <motion.div 
-        whileHover={!match.played ? { backgroundColor: 'rgba(39,39,42,0.8)' } : {}}
-        onClick={() => !match.played && onSelect?.(match.id, match.teamB?.id, side)}
-        className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer ${winnerB ? 'bg-emerald-950/50' : winnerA ? 'opacity-40' : ''}`}
+      </div>
+      {/* Team B */}
+      <div 
+        onClick={() => !match.played && onSelect?.(match.id, teamB?.id, side)}
+        className={`flex items-center gap-2 px-2.5 py-2 cursor-pointer hover:bg-zinc-800/50
+          ${winnerB ? 'bg-emerald-500/10' : winnerA ? 'opacity-40' : ''}`}
       >
-        <TeamLogo src={match.teamB?.logo} name={match.teamB?.name} size="sm" />
-        <span className={`flex-1 text-xs font-medium truncate ${winnerB ? 'text-emerald-400' : 'text-zinc-300'}`}>{match.teamB?.shortName}</span>
-        {match.played && <span className="text-xs font-bold text-zinc-400">{match.aggScoreB ?? match.scoreB}</span>}
+        <TeamLogo src={teamB?.logo} name={teamB?.name} size="sm" />
+        <span className={`flex-1 text-xs font-medium truncate ${winnerB ? 'text-emerald-400' : 'text-zinc-200'}`}>
+          {teamB?.shortName || teamB?.name?.slice(0, 3)}
+        </span>
+        {match.played && <span className="text-xs font-bold text-white">{match.aggScoreB ?? match.scoreB}</span>}
         {winnerB && <Crown className="w-3 h-3 text-amber-400" />}
-      </motion.div>
+      </div>
+      {/* Simulate */}
       {!match.played && (
-        <button onClick={() => onSimulate?.(match.id, side)} className="w-full py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-500 text-[10px] flex items-center justify-center gap-1">
-          <Play size={8} /> Simüle
+        <button 
+          onClick={() => onSimulate?.(match.id, side)}
+          className="w-full py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] flex items-center justify-center gap-1 transition-all"
+        >
+          <Play size={8} fill="currentColor" /> Simüle
         </button>
       )}
     </div>
   );
 };
 
+// Slot placeholder
+const Slot = () => (
+  <div className="w-40 h-16 rounded-lg border border-dashed border-zinc-800 bg-zinc-900/50" />
+);
+
+// Round Header
+const RoundHeader = ({ children, count, onSimulateAll, showSimulate }) => (
+  <div className="flex items-center justify-center gap-3 mb-4">
+    <div className="h-px flex-1 bg-zinc-800" />
+    <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{children}</span>
+    {count && <span className="text-[10px] text-zinc-600">({count})</span>}
+    {showSimulate && (
+      <button onClick={onSimulateAll} className="text-[10px] text-amber-500/70 hover:text-amber-400 flex items-center gap-1">
+        <FastForward size={10} /> Tümü
+      </button>
+    )}
+    <div className="h-px flex-1 bg-zinc-800" />
+  </div>
+);
+
+// Vertical connector
+const Connector = () => (
+  <div className="flex justify-center py-2">
+    <ChevronDown className="w-4 h-4 text-zinc-700" />
+  </div>
+);
+
 // Final Card
 const FinalCard = ({ match, onSimulate, onSelect }) => (
-  <div className="flex flex-col items-center">
-    <Trophy className="w-12 h-12 text-amber-500 mb-2" />
-    <div className="text-amber-500 text-lg font-bold mb-3">ŞAMPİYON</div>
+  <div className="flex flex-col items-center py-6">
+    {/* Trophy */}
+    <motion.div 
+      animate={{ y: [0, -3, 0] }}
+      transition={{ duration: 2, repeat: Infinity }}
+      className="mb-3"
+    >
+      <Trophy className="w-10 h-10 text-amber-400" />
+    </motion.div>
     
+    <div className="text-lg font-bold text-amber-400 mb-3">ŞAMPİYON</div>
+    
+    {/* Winner */}
     {match?.winner && (
-      <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="flex flex-col items-center mb-3">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }} 
+        animate={{ scale: 1, opacity: 1 }} 
+        className="flex flex-col items-center mb-4"
+      >
         <TeamLogo src={match.winner.logo} name={match.winner.name} size="xl" />
         <div className="text-amber-400 font-bold mt-2">{match.winner.name}</div>
       </motion.div>
     )}
     
-    <div className="bg-amber-950/30 rounded-xl border border-amber-800/40 px-4 py-3">
-      <div className="text-amber-600 text-xs font-bold text-center mb-2">FİNAL</div>
+    {/* Final box */}
+    <div className="bg-zinc-900 rounded-xl border border-amber-500/30 px-5 py-4">
+      <div className="text-amber-500 text-xs font-bold text-center mb-3 flex items-center justify-center gap-2">
+        <Star className="w-3 h-3" fill="currentColor" /> FİNAL <Star className="w-3 h-3" fill="currentColor" />
+      </div>
       {match ? (
-        <div className="flex items-center gap-3">
-          <div className="text-center cursor-pointer" onClick={() => !match.played && onSelect?.(match.teamA?.id)}>
+        <div className="flex items-center gap-4">
+          <div 
+            className="text-center cursor-pointer hover:opacity-80" 
+            onClick={() => !match.played && onSelect?.(match.teamA?.id)}
+          >
             <TeamLogo src={match.teamA?.logo} name={match.teamA?.name} size="md" />
-            <div className="text-[10px] text-zinc-400 mt-1">{match.teamA?.shortName}</div>
-            {match.played && <div className="text-lg font-bold text-zinc-100">{match.scoreA}</div>}
+            <div className="text-xs text-zinc-400 mt-1">{match.teamA?.shortName}</div>
+            {match.played && <div className="text-lg font-bold text-white">{match.scoreA}</div>}
           </div>
-          <div className="text-zinc-600 text-xs">vs</div>
-          <div className="text-center cursor-pointer" onClick={() => !match.played && onSelect?.(match.teamB?.id)}>
+          <div className="text-zinc-600 text-sm font-bold">vs</div>
+          <div 
+            className="text-center cursor-pointer hover:opacity-80" 
+            onClick={() => !match.played && onSelect?.(match.teamB?.id)}
+          >
             <TeamLogo src={match.teamB?.logo} name={match.teamB?.name} size="md" />
-            <div className="text-[10px] text-zinc-400 mt-1">{match.teamB?.shortName}</div>
-            {match.played && <div className="text-lg font-bold text-zinc-100">{match.scoreB}</div>}
+            <div className="text-xs text-zinc-400 mt-1">{match.teamB?.shortName}</div>
+            {match.played && <div className="text-lg font-bold text-white">{match.scoreB}</div>}
           </div>
         </div>
       ) : (
         <div className="text-zinc-600 text-xs text-center">Yarı Final Kazananları</div>
       )}
       {match && !match.played && (
-        <button onClick={onSimulate} className="mt-2 w-full py-2 bg-amber-600 hover:bg-amber-500 text-zinc-900 text-xs font-bold rounded-lg">
+        <button 
+          onClick={onSimulate}
+          className="mt-3 w-full py-2 bg-amber-500 hover:bg-amber-400 text-zinc-900 text-sm font-bold rounded-lg transition-all"
+        >
           🏆 Finali Oyna
         </button>
       )}
     </div>
   </div>
 );
-
-// Slot placeholder
-const Slot = () => <div className="w-32 h-12 rounded-lg border border-dashed border-zinc-800 bg-zinc-900/30" />;
 
 // Main Component
 const CLKnockoutStage = () => {
@@ -172,13 +180,19 @@ const CLKnockoutStage = () => {
     allPlayoffsPlayed, allR16Played, allQFPlayed, allSFPlayed,
   } = useCL();
 
+  // Setup screen
   if (phase === 'SETUP') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Trophy className="w-16 h-16 text-amber-500 mb-4" />
-        <h2 className="text-2xl font-bold text-zinc-100 mb-2">UEFA Şampiyonlar Ligi</h2>
-        <p className="text-zinc-500 mb-6">2024-25 Sezonu</p>
-        <button onClick={initializeTournament} className="bg-amber-600 hover:bg-amber-500 text-zinc-900 font-bold px-8 py-3 rounded-xl">
+        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center mb-4">
+          <Trophy className="w-8 h-8 text-amber-400" />
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-1">UEFA Şampiyonlar Ligi</h2>
+        <p className="text-zinc-500 text-sm mb-6">2025-26 Sezonu</p>
+        <button 
+          onClick={initializeTournament} 
+          className="bg-amber-500 hover:bg-amber-400 text-zinc-900 font-bold px-8 py-3 rounded-xl transition-all"
+        >
           Turnuvaya Başla
         </button>
       </div>
@@ -186,114 +200,121 @@ const CLKnockoutStage = () => {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+    <div className="space-y-4 pb-8">
+      {/* Header Bar */}
+      <div className="flex items-center justify-between flex-wrap gap-3 bg-zinc-900 border border-zinc-800 rounded-xl p-3">
         <div className="flex items-center gap-2">
-          <Trophy className="w-5 h-5 text-amber-500" />
-          <span className="font-bold text-zinc-100">Turnuva Ağacı</span>
+          <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+            <Trophy className="w-4 h-4 text-amber-400" />
+          </div>
+          <span className="font-bold text-white">Turnuva Ağacı</span>
         </div>
         <div className="flex gap-2 flex-wrap">
           {allPlayoffsPlayed && !drawComplete && (
-            <button onClick={performR16Draw} className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white text-xs font-medium rounded-lg flex items-center gap-1">
+            <button onClick={performR16Draw} className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-900 text-xs font-bold rounded-lg flex items-center gap-1">
               <Shuffle size={12} /> Kura Çek
             </button>
           )}
           {allR16Played && leftQF.length === 0 && (
-            <button onClick={initializeQF} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg">Çeyrek Final →</button>
+            <button onClick={initializeQF} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg">
+              Çeyrek Final
+            </button>
           )}
           {allQFPlayed && !leftSF && (
-            <button onClick={initializeSF} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg">Yarı Final →</button>
+            <button onClick={initializeSF} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg">
+              Yarı Final
+            </button>
           )}
           {allSFPlayed && !finalMatch && (
-            <button onClick={initializeFinal} className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white text-xs font-medium rounded-lg">Final →</button>
+            <button onClick={initializeFinal} className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-900 text-xs font-bold rounded-lg">
+              Final
+            </button>
           )}
-          <button onClick={resetTournament} className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs rounded-lg flex items-center gap-1">
-            <RotateCcw size={12} /> Sıfırla
+          <button onClick={resetTournament} className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs rounded-lg flex items-center gap-1 border border-zinc-700">
+            <RotateCcw size={10} /> Sıfırla
           </button>
         </div>
       </div>
 
-      {/* Bracket - Now fits on screen */}
-      <div className="overflow-x-auto">
-        <div className="flex justify-center items-start gap-4 min-w-[1100px] py-4">
-          
-          {/* LEFT SIDE */}
-          <div className="flex items-start gap-3">
-            {/* Playoffs */}
-            <div className="space-y-3">
-              <div className="text-[10px] text-purple-400 font-bold uppercase">Playoff</div>
-              {leftPlayoffs.map(m => <PlayoffCard key={m.id} match={m} onSimulate={simulatePlayoff} onSelect={selectPlayoffWinner} side="left" />)}
-              {leftPlayoffs.some(m => !m.played) && (
-                <button onClick={simulateAllPlayoffs} className="text-[10px] text-purple-400/60 hover:text-purple-400 flex items-center gap-1">
-                  <FastForward size={10} /> Tümü
-                </button>
-              )}
-            </div>
-            
-            {/* R16 */}
-            <div className="space-y-3 pt-2">
-              <div className="text-[10px] text-zinc-500 font-bold uppercase">Son 16</div>
-              {!drawComplete ? r16Potentials.map((p, i) => <PotentialCard key={i} pair={p} />) : leftR16.map(m => <MatchCard key={m.id} match={m} onSimulate={simulateR16} onSelect={selectR16Winner} side="left" />)}
-              {drawComplete && leftR16.some(m => !m.played) && (
-                <button onClick={simulateAllR16} className="text-[10px] text-zinc-500/60 flex items-center gap-1"><FastForward size={10} /> Tümü</button>
-              )}
-            </div>
-            
-            {/* QF */}
-            <div className="space-y-6 pt-6">
-              <div className="text-[10px] text-zinc-500 font-bold uppercase">Çeyrek</div>
-              {leftQF.length > 0 ? leftQF.map(m => <MatchCard key={m.id} match={m} onSimulate={simulateQF} onSelect={selectQFWinner} side="left" />) : <><Slot /><Slot /></>}
-            </div>
-            
-            {/* SF */}
-            <div className="space-y-6 pt-14">
-              <div className="text-[10px] text-zinc-500 font-bold uppercase">Yarı</div>
-              {leftSF ? <MatchCard match={leftSF} onSimulate={() => simulateSF('left')} onSelect={(id, wid) => selectSFWinner(wid, 'left')} side="left" /> : <Slot />}
-            </div>
-          </div>
-
-          {/* CENTER */}
-          <div className="pt-24">
-            <FinalCard match={finalMatch} onSimulate={simulateFinal} onSelect={selectFinalWinner} />
-          </div>
-
-          {/* RIGHT SIDE */}
-          <div className="flex items-start gap-3 flex-row-reverse">
-            {/* Playoffs */}
-            <div className="space-y-3">
-              <div className="text-[10px] text-cyan-400 font-bold uppercase text-right">Playoff</div>
-              {rightPlayoffs.map(m => <PlayoffCard key={m.id} match={m} onSimulate={simulatePlayoff} onSelect={selectPlayoffWinner} side="right" />)}
-              {rightPlayoffs.some(m => !m.played) && (
-                <button onClick={simulateAllPlayoffs} className="text-[10px] text-cyan-400/60 hover:text-cyan-400 flex items-center gap-1 justify-end">
-                  Tümü <FastForward size={10} />
-                </button>
-              )}
-            </div>
-            
-            {/* R16 */}
-            <div className="space-y-3 pt-2">
-              <div className="text-[10px] text-zinc-500 font-bold uppercase text-right">Son 16</div>
-              {!drawComplete ? r16Potentials.map((p, i) => <PotentialCard key={`r${i}`} pair={p} />) : rightR16.map(m => <MatchCard key={m.id} match={m} onSimulate={simulateR16} onSelect={selectR16Winner} side="right" />)}
-              {drawComplete && rightR16.some(m => !m.played) && (
-                <button onClick={simulateAllR16} className="text-[10px] text-zinc-500/60 flex items-center gap-1 justify-end">Tümü <FastForward size={10} /></button>
-              )}
-            </div>
-            
-            {/* QF */}
-            <div className="space-y-6 pt-6">
-              <div className="text-[10px] text-zinc-500 font-bold uppercase text-right">Çeyrek</div>
-              {rightQF.length > 0 ? rightQF.map(m => <MatchCard key={m.id} match={m} onSimulate={simulateQF} onSelect={selectQFWinner} side="right" />) : <><Slot /><Slot /></>}
-            </div>
-            
-            {/* SF */}
-            <div className="space-y-6 pt-14">
-              <div className="text-[10px] text-zinc-500 font-bold uppercase text-right">Yarı</div>
-              {rightSF ? <MatchCard match={rightSF} onSimulate={() => simulateSF('right')} onSelect={(id, wid) => selectSFWinner(wid, 'right')} side="right" /> : <Slot />}
-            </div>
-          </div>
-
+      {/* VERTICAL BRACKET */}
+      <div className="max-w-5xl mx-auto">
+        
+        {/* PLAYOFFS */}
+        <RoundHeader 
+          count={leftPlayoffs.length + rightPlayoffs.length}
+          showSimulate={[...leftPlayoffs, ...rightPlayoffs].some(m => !m.played)}
+          onSimulateAll={simulateAllPlayoffs}
+        >
+          Playoffs
+        </RoundHeader>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 justify-items-center mb-2">
+          {leftPlayoffs.map(m => <CompactMatch key={m.id} match={m} onSimulate={simulatePlayoff} onSelect={selectPlayoffWinner} side="left" />)}
+          {rightPlayoffs.map(m => <CompactMatch key={m.id} match={m} onSimulate={simulatePlayoff} onSelect={selectPlayoffWinner} side="right" />)}
         </div>
+        
+        <Connector />
+        
+        {/* ROUND OF 16 */}
+        <RoundHeader 
+          count={8}
+          showSimulate={drawComplete && [...leftR16, ...rightR16].some(m => !m.played)}
+          onSimulateAll={simulateAllR16}
+        >
+          Son 16
+        </RoundHeader>
+        {!drawComplete ? (
+          <div className="text-center py-6">
+            <p className="text-zinc-500 text-sm mb-3">Playoff'lar tamamlandığında kura çekilecek</p>
+            {allPlayoffsPlayed && (
+              <button onClick={performR16Draw} className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-900 text-sm font-bold rounded-lg flex items-center gap-2 mx-auto">
+                <Shuffle size={14} /> Kura Çek
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 justify-items-center mb-2">
+            {leftR16.map(m => <CompactMatch key={m.id} match={m} onSimulate={simulateR16} onSelect={selectR16Winner} side="left" />)}
+            {rightR16.map(m => <CompactMatch key={m.id} match={m} onSimulate={simulateR16} onSelect={selectR16Winner} side="right" />)}
+          </div>
+        )}
+        
+        <Connector />
+        
+        {/* QUARTER FINALS */}
+        <RoundHeader 
+          count={4}
+          showSimulate={[...leftQF, ...rightQF].some(m => !m.played)}
+          onSimulateAll={simulateAllQF}
+        >
+          Çeyrek Final
+        </RoundHeader>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 justify-items-center mb-2">
+          {leftQF.length > 0 ? (
+            leftQF.map(m => <CompactMatch key={m.id} match={m} onSimulate={simulateQF} onSelect={selectQFWinner} side="left" />)
+          ) : <><Slot /><Slot /></>}
+          {rightQF.length > 0 ? (
+            rightQF.map(m => <CompactMatch key={m.id} match={m} onSimulate={simulateQF} onSelect={selectQFWinner} side="right" />)
+          ) : <><Slot /><Slot /></>}
+        </div>
+        
+        <Connector />
+        
+        {/* SEMI FINALS */}
+        <RoundHeader count={2}>Yarı Final</RoundHeader>
+        <div className="grid grid-cols-2 gap-8 justify-items-center mb-2 max-w-lg mx-auto">
+          {leftSF ? (
+            <CompactMatch match={leftSF} onSimulate={() => simulateSF('left')} onSelect={(id, wid) => selectSFWinner(wid, 'left')} side="left" />
+          ) : <Slot />}
+          {rightSF ? (
+            <CompactMatch match={rightSF} onSimulate={() => simulateSF('right')} onSelect={(id, wid) => selectSFWinner(wid, 'right')} side="right" />
+          ) : <Slot />}
+        </div>
+        
+        <Connector />
+        
+        {/* FINAL */}
+        <FinalCard match={finalMatch} onSimulate={simulateFinal} onSelect={selectFinalWinner} />
+        
       </div>
     </div>
   );
