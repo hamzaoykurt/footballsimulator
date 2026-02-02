@@ -98,7 +98,7 @@ const GroupCard = ({ groupName, teams, matches, onSimulateGroup }) => {
 const GroupStage = () => {
   const { 
     groups, standings, groupMatches, simulateGroup, simulateAllGroups, 
-    initializeKnockout, customThirdPlaceOrder, setCustomThirdPlaceOrder
+    initializeKnockout, customThirds, setManualThirdsOrder
   } = useTournament();
 
   const allMatchesPlayed = useMemo(() => {
@@ -117,16 +117,16 @@ const GroupStage = () => {
 
   // Reorder logic for Drag & Drop
   const handleReorder = (newOrder) => {
-    if (setCustomThirdPlaceOrder) {
-      setCustomThirdPlaceOrder(newOrder.map(t => t.id));
+    if (setManualThirdsOrder) {
+      setManualThirdsOrder(newOrder.map(t => t.id));
     }
   };
 
   const displayThirdPlaces = useMemo(() => {
-    if (!customThirdPlaceOrder || customThirdPlaceOrder.length === 0) return thirdPlaceTeams;
-    return customThirdPlaceOrder.map(id => thirdPlaceTeams.find(t => t.id === id)).filter(Boolean)
-        .concat(thirdPlaceTeams.filter(t => !customThirdPlaceOrder.includes(t.id)));
-  }, [customThirdPlaceOrder, thirdPlaceTeams]);
+    if (!customThirds || customThirds.length === 0) return thirdPlaceTeams;
+    return customThirds.map(id => thirdPlaceTeams.find(t => t.id === id)).filter(Boolean)
+        .concat(thirdPlaceTeams.filter(t => !customThirds.includes(t.id)));
+  }, [customThirds, thirdPlaceTeams]);
 
   if (!groups || Object.keys(groups).length === 0) {
     return (

@@ -17,25 +17,28 @@ const GROUPS_KEYS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
  */
 
 // Helper to calculate match result based on strength
-// Helper to calculate match result based on strength
 const calculateMatchResult = (teamA, teamB) => {
   const strengthDiff = teamA.strength - teamB.strength;
   
   // Adjusted for more realism/form-like behavior (Fifa style ranking respect)
-  let baseVolatility = 8; // Reduced from 12 for less random upsets
-  const dampener = Math.min(1, Math.abs(strengthDiff) / 15); // Faster dampening
-  const volatility = baseVolatility * (1 - dampener) + 1; // Minimum volatility 1
+  let baseVolatility = 2; // Reduced to 2 (Minimal Randomness) for STRICT realism
+  const dampener = Math.min(1, Math.abs(strengthDiff) / 25); 
+  const volatility = baseVolatility * (1 - dampener) + 0.2; 
 
   // Skew random factor slightly towards the stronger team
-  const randomFactor = (Math.random() - 0.5) * (volatility * 2.5) + (strengthDiff * 0.1);
-  let matchPerformance = strengthDiff * 1.2 + randomFactor; // 20% more weight to strength
+  const randomFactor = (Math.random() - 0.5) * (volatility * 1.5);
+  let matchPerformance = strengthDiff * 2.5 + randomFactor; // 2.5 weight to strength (Huge impact)
   
-  // Powerhouse bonus (Teams 90+ are dominant)
-  if (teamA.strength >= 90 && strengthDiff > 0) matchPerformance += 3;
-  if (teamB.strength >= 90 && strengthDiff < 0) matchPerformance -= 3;
+  // Powerhouse bonus (Teams 85+ are dominant)
+  if (teamA.strength >= 85 && strengthDiff > 0) matchPerformance += 6; // Massive bonus for top tier
+  if (teamB.strength >= 85 && strengthDiff < 0) matchPerformance -= 6;
+  
+  // Underdog penalty (Teams < 75 struggle against big teams)
+  if (teamA.strength < 75 && strengthDiff < -10) matchPerformance -= 4;
+  if (teamB.strength < 75 && strengthDiff > 10) matchPerformance += 4;
 
-  if (strengthDiff > 10) matchPerformance += 3; 
-  if (strengthDiff < -10) matchPerformance -= 3;
+  if (strengthDiff > 15) matchPerformance += 5; 
+  if (strengthDiff < -15) matchPerformance -= 5;
 
   let xGA = 1.35 + (matchPerformance / 14);
   let xGB = 1.35 - (matchPerformance / 14);
@@ -155,59 +158,6 @@ export const TournamentProvider = ({ children }) => {
     console.log('[TournamentContext] Phase set to GROUPS, isReady=true');
   }, []);
 
-  // Simulate a single match
-  const simulateMatch = useCallback((groupKey, matchId) => {
-    setGroupMatches(prev => {
-      const groupMatchesList = [...prev[groupKey]];
-      const matchIndex = groupMatchesList.findIndex(m => m.id === matchId);
-      if (matchIndex === -1) return prev;
-
-      const match = groupMatchesList[matchIndex];
-      if (match.played) return prev;
-
-      const { scoreA, scoreB } = calculateMatchResult(match.teamA, match.teamB);
-      groupMatchesList[matchIndex] = { ...match, scoreA, scoreB, played: true };
-
-      return { ...prev, [groupKey]: groupMatchesList };
-    });
-    
-    // Update standings after match
-    setTimeout(() => updateStandings(groupKey), 0);
-  }, []);
-
-  // Simulate all matches in a group
-  const simulateGroup = useCallback((groupKey) => {
-    setGroupMatches(prev => {
-      const groupMatchesList = prev[groupKey].map(match => {
-        if (match.played) return match;
-        const { scoreA, scoreB } = calculateMatchResult(match.teamA, match.teamB);
-        return { ...match, scoreA, scoreB, played: true };
-      });
-      return { ...prev, [groupKey]: groupMatchesList };
-    });
-    
-    setTimeout(() => updateStandings(groupKey), 0);
-  }, []);
-
-  // Simulate all groups
-  const simulateAllGroups = useCallback(() => {
-    setGroupMatches(prev => {
-      const newMatches = { ...prev };
-      GROUPS_KEYS.forEach(key => {
-        newMatches[key] = prev[key].map(match => {
-          if (match.played) return match;
-          const { scoreA, scoreB } = calculateMatchResult(match.teamA, match.teamB);
-          return { ...match, scoreA, scoreB, played: true };
-        });
-      });
-      return newMatches;
-    });
-    
-    setTimeout(() => {
-      GROUPS_KEYS.forEach(key => updateStandings(key));
-    }, 0);
-  }, []);
-
   // Update standings for a group
   const updateStandings = useCallback((groupKey) => {
     setStandings(prev => {
@@ -257,6 +207,75 @@ export const TournamentProvider = ({ children }) => {
       return prev;
     });
   }, [groups]);
+
+  // Simulate a single match
+  const simulateMatch = useCallback((groupKey, matchId) => {
+    setGroupMatches(prev => {
+      const groupMatchesList = [...prev[groupKey]];
+      const matchIndex = groupMatchesList.findIndex(m => m.id === matchId);
+      if (matchIndex === -1) return prev;
+
+      const match = groupMatchesList[matchIndex];
+      if (match.played) return prev;
+
+      const { scoreA, scoreB } = calculateMatchResult(match.teamA, match.teamB);
+      groupMatchesList[matchIndex] = { ...match, scoreA, scoreB, played: true };
+
+      return { ...prev, [groupKey]: groupMatchesList };
+    });
+    
+    // Update standings after match
+    setTimeout(() => updateStandings(groupKey), 0);
+  }, [updateStandings]);
+
+  // Simulate all matches in a group
+  const simulateGroup = useCallback((groupKey) => {
+    setGroupMatches(prev => {
+      const groupMatchesList = prev[groupKey].map(match => {
+        if (match.played) return match;
+        const { scoreA, scoreB } = calculateMatchResult(match.teamA, match.teamB);
+        return { ...match, scoreA, scoreB, played: true };
+      });
+      return { ...prev, [groupKey]: groupMatchesList };
+    });
+    
+    setTimeout(() => updateStandings(groupKey), 0);
+  }, [updateStandings]);
+
+  // Simulate all groups
+  const simulateAllGroups = useCallback(() => {
+    console.log('[TournamentContext] simulateAllGroups triggered');
+    
+    setGroupMatches(prev => {
+      const newMatchesState = { ...prev };
+      let hasUpdates = false;
+      
+      GROUPS_KEYS.forEach(key => {
+        if (!newMatchesState[key]) return;
+        
+        newMatchesState[key] = newMatchesState[key].map(match => {
+          if (match.played) return match;
+          
+          const { scoreA, scoreB } = calculateMatchResult(match.teamA, match.teamB);
+          hasUpdates = true;
+          return { ...match, scoreA, scoreB, played: true };
+        });
+      });
+
+      if (!hasUpdates) {
+        console.log('[TournamentContext] No new matches to simulate.');
+        return prev; 
+      }
+
+      // Schedule standings update
+      setTimeout(() => {
+        console.log('[TournamentContext] Updating standings for all groups...');
+        GROUPS_KEYS.forEach(key => updateStandings(key));
+      }, 50);
+
+      return newMatchesState;
+    });
+  }, [updateStandings]);
 
   // Initialize knockout stage
   const initializeKnockout = useCallback(() => {
@@ -465,7 +484,7 @@ export const TournamentProvider = ({ children }) => {
     });
     
     setTimeout(() => updateStandings(groupKey), 0);
-  }, []);
+  }, [updateStandings]);
 
   // Move team up in group standings
   const moveTeamUp = useCallback((groupKey, teamIndex) => {
@@ -522,7 +541,7 @@ export const TournamentProvider = ({ children }) => {
       standings,
       knockoutMatches,
       champion,
-      customThirds, // Export this
+      customThirds,
       startTournament,
       simulateMatch,
       simulateGroup,
@@ -531,7 +550,6 @@ export const TournamentProvider = ({ children }) => {
       simulateRound,
       resetTournament,
       setPhase,
-      // Manual control
       setManualWinner,
       reorderStandings,
       setManualMatchResult,

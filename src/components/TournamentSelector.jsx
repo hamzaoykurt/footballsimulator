@@ -49,7 +49,7 @@ const TournamentSelector = ({ onSelect }) => {
   ];
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+    <div className="relative min-h-[100dvh] flex flex-col items-center justify-start md:justify-center py-12 px-4 md:p-4 overflow-y-auto overflow-x-hidden">
       {/* Background Layer - Noise & Mesh */}
       <AnimatedBackground variant="default" />
       
@@ -60,13 +60,13 @@ const TournamentSelector = ({ onSelect }) => {
            initial={{ opacity: 0, y: 30 }}
            animate={{ opacity: 1, y: 0 }}
            transition={{ duration: 0.8, ease: "easeOut" }}
-           className="text-center mb-16 md:mb-24"
+           className="text-center mb-10 md:mb-24"
         >
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-[2rem] bg-white/[0.03] backdrop-blur-xl border border-white/10 mb-8 shadow-2xl ring-1 ring-white/5">
+          <div className="inline-flex items-center justify-center w-16 h-16 md:w-24 md:h-24 rounded-2xl md:rounded-[2rem] bg-white/[0.03] backdrop-blur-xl border border-white/10 mb-6 md:mb-8 shadow-2xl ring-1 ring-white/5">
             <Trophy className="w-10 h-10 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" />
           </div>
           
-          <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter mb-6 drop-shadow-2xl">
+          <h1 className="text-4xl md:text-5xl lg:text-8xl font-black text-white tracking-tighter mb-4 md:mb-6 drop-shadow-2xl">
             Football Simulator
           </h1>
           <p className="text-lg text-zinc-500 font-medium max-w-lg mx-auto tracking-wide">
@@ -89,7 +89,7 @@ const TournamentSelector = ({ onSelect }) => {
               onClick={() => onSelect(card.id)}
               className={`
                 group relative flex flex-col items-start text-left h-full
-                rounded-[2rem] p-8
+                rounded-2xl md:rounded-[2rem] p-6 md:p-8
                 bg-white/[0.02] backdrop-blur-3xl
                 ring-1 ring-white/[0.08]
                 transition-all duration-500 ease-out

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, ChevronLeft, Calendar, Shield, Users, Crown, 
   ArrowRight, Play, RotateCcw, AlertCircle, Star, Sparkles,
-  Swords, Zap, Shuffle, ChevronRight
+  Swords, Zap, Shuffle, ChevronRight, Home
 } from 'lucide-react';
 import { useCL } from '../context/CLContext';
 import AnimatedBackground from './AnimatedBackground';
@@ -161,8 +161,8 @@ const ChampionsLeagueApp = ({ onBack, view }) => {
             <div className="flex flex-wrap gap-4 items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold flex items-center gap-3">
-                  <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
-                    <Swords className="text-amber-400" size={20} />
+                  <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                    <Swords className="text-blue-400" size={20} />
                   </div>
                   {getPhaseTitle(phase)}
                 </h2>
@@ -228,14 +228,14 @@ const ChampionsLeagueApp = ({ onBack, view }) => {
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="flex flex-col items-center py-20 bg-gradient-to-b from-amber-500/20 to-transparent rounded-[3rem] border border-amber-500/20 shadow-2xl shadow-amber-900/40 overflow-hidden relative"
+                className="flex flex-col items-center py-20 bg-gradient-to-b from-blue-900/40 via-blue-950/20 to-transparent rounded-[3rem] border border-blue-500/30 shadow-2xl shadow-blue-900/40 overflow-hidden relative"
                 ref={championRef}
               >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(245,158,11,0.2),transparent_70%)] animate-pulse" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.2),transparent_70%)] animate-pulse" />
                 
                  {/* Rotating Logo Effect */}
                  <div className="relative mb-12">
-                  <div className="absolute inset-0 bg-amber-500 blur-3xl opacity-20 animate-pulse" />
+                  <div className="absolute inset-0 bg-blue-500 blur-3xl opacity-20 animate-pulse" />
                   <motion.div
                     animate={{ rotateY: 360 }}
                     transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
@@ -258,7 +258,7 @@ const ChampionsLeagueApp = ({ onBack, view }) => {
                    transition={{ delay: 0.5 }}
                    className="text-center relative z-10"
                 >
-                  <span className="text-amber-500 font-black tracking-[0.5em] uppercase mb-4 block text-sm">2025-26 ŞAMPİYONU</span>
+                  <span className="text-blue-400 font-black tracking-[0.5em] uppercase mb-4 block text-sm">2025-26 ŞAMPİYONU</span>
                   <h2 className="text-6xl md:text-8xl font-black text-white tracking-tighter mb-2 drop-shadow-2xl">{champion.name}</h2>
                 </motion.div>
               </motion.div>
@@ -277,23 +277,23 @@ const ChampionsLeagueApp = ({ onBack, view }) => {
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 100, opacity: 0 }}
                 transition={{ type: "spring", damping: 20 }}
-                className="flex items-center gap-2 p-2 bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/80 ring-1 ring-white/10 pointer-events-auto max-w-[90vw] overflow-x-auto custom-scrollbar"
+                className="flex items-center gap-2 p-2 bg-blue-950/90 backdrop-blur-2xl border border-blue-500/20 rounded-2xl shadow-2xl shadow-blue-900/50 ring-1 ring-blue-400/10 pointer-events-auto max-w-[95vw] overflow-x-auto custom-scrollbar"
               >
                 <button
                   onClick={handleBack}
-                  className="p-3 hover:bg-white/10 rounded-xl transition-all text-zinc-400 hover:text-white group relative shrink-0"
-                  title="Geri Dön"
+                  className="p-3 hover:bg-blue-500/20 rounded-xl transition-all text-blue-300 hover:text-white group relative shrink-0"
+                  title="Ana Menü"
                 >
-                  <ChevronLeft size={22} className="group-hover:-translate-x-0.5 transition-transform" />
+                  <Home size={22} />
                 </button>
 
                 {phase !== 'SETUP' && (
                   <>
-                    <div className="w-px h-8 bg-white/10 mx-1 shrink-0" />
+                    <div className="w-px h-8 bg-blue-500/20 mx-1 shrink-0" />
 
                     <button
                       onClick={() => resetTournament('SETUP')}
-                      className="flex items-center gap-2 px-4 py-3 bg-zinc-800/50 hover:bg-white/10 text-zinc-300 hover:text-white rounded-xl transition-all border border-white/5 hover:border-white/20 font-medium text-sm shrink-0"
+                      className="flex items-center gap-2 px-4 py-3 bg-blue-900/30 hover:bg-blue-800/50 text-blue-200 hover:text-white rounded-xl transition-all border border-blue-500/10 hover:border-blue-400/30 font-medium text-sm shrink-0"
                       title="Turnuvayı Sıfırla"
                     >
                       <RotateCcw size={18} />
@@ -313,7 +313,7 @@ const ChampionsLeagueApp = ({ onBack, view }) => {
                               key={p}
                               initial={false}
                               animate={{
-                                backgroundColor: active ? '#f59e0b' : '#27272a',
+                                backgroundColor: active ? '#3b82f6' : '#27272a',
                                 width: phase === p ? 16 : 4
                               }}
                               className="h-1 rounded-full"
@@ -358,9 +358,9 @@ const ActionButton = ({
   simulateAllPlayoffs, initializeR16, simulateAllR16, initializeQF, simulateAllQF,
   initializeSF, simulateAllSF, initializeFinal, simulateFinal
 }) => {
-  const btnClass = "px-6 py-3 font-bold rounded-xl shadow-lg flex items-center gap-2 transition-all";
-  const primary = `${btnClass} bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-amber-500/25`;
-  const secondary = `${btnClass} bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-emerald-500/25`;
+  const btnClass = "px-4 py-3 font-bold rounded-xl shadow-lg flex items-center gap-2 transition-all whitespace-nowrap text-sm";
+  const primary = `${btnClass} bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-blue-500/25 hover:brightness-110`;
+  const secondary = `${btnClass} bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-indigo-500/25`;
 
   if (phase === 'PLAYOFF' && !allPlayoffsPlayed) {
     return <button onClick={simulateAllPlayoffs} className={primary}>Tümünü Simüle Et</button>;
@@ -440,18 +440,17 @@ const CLMatchCard = ({ match, stage, onSelectWinner, isFinal, index = 0 }) => {
     <motion.div 
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: index * 0.03 }}
       className={`
-        relative rounded-2xl overflow-hidden
+        relative overflow-hidden rounded-2xl border transition-all duration-300 group
         ${isFinal 
-          ? 'bg-gradient-to-br from-amber-500/10 via-zinc-900 to-zinc-900 border-2 border-amber-500/30' 
-          : 'bg-zinc-900/80 border border-white/5'
-        }
+          ? 'bg-gradient-to-br from-blue-900/40 to-indigo-900/40 border-blue-400/30 shadow-2xl shadow-blue-900/20' 
+          : 'bg-slate-900/60 border-white/5 hover:border-blue-500/30 hover:bg-blue-900/20'}
       `}
     >
+      {isFinal && <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent opacity-50" />}
       {isFinal && (
         <div className="absolute top-3 left-3 right-3 flex justify-center">
-          <span className="px-3 py-1 bg-amber-500/20 rounded-full text-amber-400 text-[10px] font-bold tracking-widest">
+          <span className="px-3 py-1 bg-blue-500/20 rounded-full text-blue-300 text-[10px] font-bold tracking-widest border border-blue-500/20">
             FİNAL
           </span>
         </div>
@@ -521,7 +520,7 @@ const CLTeamRow = ({ team, score, isWinner, isLoser, isPlayable, onClick, isFina
       </div>
       
       {/* Name */}
-      <span className={`flex-1 text-left font-semibold truncate ${isFinal ? 'text-lg' : ''}`}>
+      <span className={`flex-1 text-left font-semibold truncate text-sm font-bold truncate ${isWinner ? 'text-cyan-400 drop-shadow-md' : 'text-slate-400 group-hover:text-slate-200'} ${isFinal ? 'text-lg' : ''}`}>
         {team?.shortName || team?.name || 'TBD'}
       </span>
       
@@ -529,7 +528,9 @@ const CLTeamRow = ({ team, score, isWinner, isLoser, isPlayable, onClick, isFina
       {score !== null && score !== undefined && (
         <span className={`
           min-w-[2rem] h-8 flex items-center justify-center rounded-lg font-bold tabular-nums
-          ${isWinner ? 'bg-emerald-500 text-white' : 'bg-zinc-800 text-zinc-400'}
+          flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold
+          ${isWinner ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20' : 'bg-slate-800 text-slate-500'}
+          ${isFinal ? 'w-8 h-8 text-sm' : ''}
         `}>
           {score}
         </span>

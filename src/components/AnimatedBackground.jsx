@@ -18,19 +18,19 @@ const AnimatedBackground = ({ variant = 'default', className = '' }) => {
       secondary: '#0f0518', // Violet 950 (The "Deep")
     },
     worldcup: {
-      bg: '#000000',
-      primary: '#064e3b', // Emerald 900
-      secondary: '#022c22', // Emerald 950
+      bg: '#000000', // Pure Black (User Request: Green & Black only)
+      primary: '#14532d', // Green 900 (Forest Green)
+      secondary: '#064e3b', // Emerald 900 (Deep Green)
     },
     championsleague: {
-      bg: '#000000',
-      primary: '#1e3a8a', // Blue 900
-      secondary: '#0f172a', // Slate 900
+      bg: '#020617', // Slate 950 (Deep Navy)
+      primary: '#172554', // Blue 950 (Deepest Blue)
+      secondary: '#1e3a8a', // Blue 900
     },
     fixture: {
-      bg: '#000000',
-      primary: '#881337', // Rose 900
-      secondary: '#4c0519', // Rose 950
+      bg: '#180408', // Rose 950+
+      primary: '#4c0519', // Rose 950 (Bordeaux)
+      secondary: '#450a0a', // Red 950 (Deep Red)
     },
   };
 
