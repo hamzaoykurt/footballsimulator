@@ -14,6 +14,7 @@ Refactoring the application to meet the user's specific requirements:
   - Draw logic is present but user wants to skip it.
 - Analyzed `tailwind.config.js`:
   - Currently set to `cyber` theme (dark, neon). Needs to be changed.
+- Fixed syntax error in `src/data/clTeams.js` (missing `{` in `leftPlayoffs`).
 
 ## Next Steps
 

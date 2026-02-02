@@ -32,6 +32,7 @@ export const CL_TEAMS = {
 
   // Playoff matchups
   leftPlayoffs: [
+    {
       id: 'PO-L1',
       home: { id: 'bvb', name: 'Borussia Dortmund', shortName: 'Dortmund', strength: 85, logo: 'https://tmssl.akamaized.net/images/wappen/head/16.png' },
       away: { id: 'ata', name: 'Atalanta', shortName: 'Atalanta', strength: 85, logo: 'https://tmssl.akamaized.net/images/wappen/head/800.png' },
