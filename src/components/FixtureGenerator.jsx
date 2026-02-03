@@ -559,7 +559,7 @@ const FixtureGenerator = ({ onBack, view }) => {
                <div className="w-full max-w-[95rem] flex flex-col lg:grid lg:grid-cols-[1fr_34rem_1fr] gap-8 items-center justify-items-center h-full lg:max-h-[80vh]">
                   
                   {/* LEFT WHEEL */}
-                  <div className="flex items-center justify-center w-full h-auto lg:h-full transform scale-100 lg:scale-100 order-1 lg:order-1 pt-4 lg:pt-0">
+                  <div ref={strongWheelRef} className="flex items-center justify-center w-full h-auto lg:h-full transform scale-100 lg:scale-100 order-1 lg:order-1 pt-4 lg:pt-0">
                      <SpinWheel 
                        items={strongTeams} 
                        onSpin={handleStrongSpin} 
