@@ -88,18 +88,18 @@ export const TournamentProvider = ({ children }) => {
 
   // Fixed group assignments for World Cup 2026
   const FIXED_GROUPS = {
-    'A': ['den', 'mex', 'kor', 'rsa'],
-    'B': ['sui', 'ita', 'can', 'qat'],
-    'C': ['bra', 'mar', 'sco', 'hai'],
-    'D': ['tur', 'par', 'aus', 'usa'],
-    'E': ['ecu', 'ger', 'civ', 'cur'],
-    'F': ['ned', 'jpn', 'ukr', 'tun'],
-    'G': ['bel', 'irn', 'egy', 'nzl'],
-    'H': ['esp', 'uru', 'ksa', 'cpv'],
-    'I': ['fra', 'nor', 'sen', 'irq'],
-    'J': ['arg', 'aut', 'alg', 'jor'],
-    'K': ['por', 'col', 'uzb', 'cod'],
-    'L': ['eng', 'cro', 'pan', 'gha']
+    'A': ['cze', 'mex', 'rsa', 'kor'],
+    'B': ['bih', 'can', 'qat', 'sui'],
+    'C': ['bra', 'hai', 'mar', 'sco'],
+    'D': ['aus', 'par', 'tur', 'usa'],
+    'E': ['cur', 'ecu', 'ger', 'civ'],
+    'F': ['jpn', 'ned', 'swe', 'tun'],
+    'G': ['bel', 'egy', 'irn', 'nzl'],
+    'H': ['cpv', 'ksa', 'esp', 'uru'],
+    'I': ['fra', 'irq', 'nor', 'sen'],
+    'J': ['alg', 'arg', 'aut', 'jor'],
+    'K': ['col', 'cod', 'por', 'uzb'],
+    'L': ['cro', 'eng', 'gha', 'pan']
   };
 
   // Initialize tournament
