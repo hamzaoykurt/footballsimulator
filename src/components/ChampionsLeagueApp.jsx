@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, ChevronLeft, Calendar, Shield, Users, Crown, 
   ArrowRight, Play, RotateCcw, AlertCircle, Star, Sparkles,
-  Swords, Zap, Shuffle, ChevronRight, Home
+  Swords, Zap, Shuffle, ChevronRight, Home, Wifi, WifiOff, RefreshCw, KeyRound
 } from 'lucide-react';
 import { useCL } from '../context/CLContext';
+import { useCLLiveData } from '../hooks/useCLLiveData';
 import AnimatedBackground from './AnimatedBackground';
 
 /**
@@ -49,6 +50,12 @@ const ChampionsLeagueApp = ({ onBack, view }) => {
     leftQF, rightQF,
     leftSF, rightSF,
     finalMatch, champion,
+    dataSource,
+    apiKey: savedApiKey,
+    lastUpdated: contextLastUpdated,
+    loadLiveData,
+    saveApiKey,
+    switchToStatic,
     
     startTournament,
     simulateAllPlayoffs,
@@ -61,6 +68,20 @@ const ChampionsLeagueApp = ({ onBack, view }) => {
     
     allPlayoffsPlayed, allR16Played, allQFPlayed, allSFPlayed,
   } = useCL();
+
+  // CL Live Data hook
+  const { data: liveData, loading: liveLoading, error: liveError, lastUpdated, isLive, refresh } = useCLLiveData(savedApiKey);
+  
+  // Local state for API key input
+  const [inputKey, setInputKey] = useState(savedApiKey || '');
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  
+  // Auto-load live data when it arrives
+  useEffect(() => {
+    if (liveData && dataSource === 'live') {
+      loadLiveData(liveData);
+    }
+  }, [liveData, dataSource, loadLiveData]);
 
   const r16Ref = useRef(null);
   const qfRef = useRef(null);
@@ -116,39 +137,137 @@ const ChampionsLeagueApp = ({ onBack, view }) => {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center min-h-[60vh] relative"
+            className="flex flex-col items-center justify-center min-h-[60vh] relative space-y-8"
           >
-            <div className="w-full max-w-md">
-                <button 
-                  onClick={handleStart}
-                  className="w-full group relative h-[28rem] rounded-[2.5rem] overflow-hidden text-left transition-all hover:scale-[1.02] shadow-2xl shadow-black/50 ring-1 ring-white/10 group-hover:ring-blue-500/50"
-                >
-                  {/* Liquid Background Layer */}
-                  <div className="absolute inset-0 bg-blue-900/10 backdrop-blur-3xl transition-colors z-0" />
-                  
-                  {/* Background Image */}
-                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1628172828628-91fb57d425f1?q=80&w=2070&auto=format&fit=crop')] opacity-20 bg-cover bg-center group-hover:opacity-30 transition-opacity mix-blend-overlay" />
-                  
-                  <div className="relative z-10 p-10 h-full flex flex-col justify-between items-center text-center">
-                    <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center backdrop-blur-md ring-1 ring-blue-500/30 group-hover:bg-blue-500 group-hover:text-white transition-all text-blue-400 shadow-xl shadow-blue-900/20">
-                      <Trophy size={40} />
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <h2 className="text-4xl font-black text-white tracking-tighter group-hover:text-blue-400 transition-colors">
-                        Turnuvayı Başlat
-                      </h2>
-                      <p className="text-zinc-400 font-medium leading-relaxed max-w-xs mx-auto">
-                        Avrupa'nın en büyük kupası için mücadele et. Final yolu seni bekliyor.
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-lg font-bold text-white bg-gradient-to-r from-blue-600 to-blue-500 px-8 py-4 rounded-2xl shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 group-hover:scale-105 transition-all duration-300">
-                      <Play size={20} fill="currentColor" />
-                      <span>HEMEN BAŞLA</span>
-                    </div>
+            {/* Mode Selection Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
+              
+              {/* LIVE DATA CARD */}
+              <button 
+                disabled={!savedApiKey && !inputKey}
+                onClick={() => { 
+                  const keyToUse = inputKey || savedApiKey;
+                  if (!keyToUse) { setShowKeyInput(true); return; }
+                  saveApiKey(keyToUse);
+                  if (liveData) {
+                    loadLiveData(liveData);
+                  }
+                }}
+                className="group relative h-[22rem] rounded-[2.5rem] overflow-hidden text-left transition-all hover:scale-[1.02] shadow-2xl shadow-black/50 ring-1 ring-white/10 hover:ring-blue-500/30 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 animate-fade-in"
+              >
+                <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-3xl z-0" />
+                <div className="relative z-10 p-10 h-full flex flex-col justify-between items-center text-center">
+                  <div className="w-20 h-20 bg-blue-900/40 rounded-3xl flex items-center justify-center backdrop-blur-md ring-1 ring-blue-500/30 group-hover:bg-blue-800 group-hover:text-white transition-all text-blue-400 shadow-xl shadow-blue-900/30">
+                    {liveLoading ? <RefreshCw size={40} className="animate-spin" /> : <Wifi size={40} />}
                   </div>
-                </button>
+                  
+                  <div className="space-y-4">
+                    <h2 className="text-3xl font-black text-white tracking-tighter group-hover:text-blue-400 transition-colors">
+                      Canlı Veri
+                    </h2>
+                    <p className="text-zinc-400 font-medium leading-relaxed max-w-xs mx-auto">
+                      Gerçek zamanlı maç sonuçları ve fikstürü otomatik çek. Turnuva hangi aşamadaysa oradan başla.
+                    </p>
+                    {!savedApiKey && !inputKey && (
+                      <span className="inline-flex items-center gap-1.5 text-amber-400 text-sm font-semibold">
+                        <KeyRound size={14} />
+                        API Key gerekli (aşağıda gir)
+                      </span>
+                    )}
+                    {liveError && (
+                      <span className="text-red-400 text-xs block leading-relaxed">{liveError}</span>
+                    )}
+                    {isLive && liveData && !liveError && (
+                      <span className="inline-flex items-center gap-1.5 text-blue-400 text-sm font-bold">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                        Veri Hazır — {getPhaseTitle(liveData.phase)}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className={`flex items-center gap-3 text-lg font-bold text-white px-8 py-4 rounded-2xl shadow-lg transition-all duration-300
+                    ${(!savedApiKey && !inputKey) 
+                      ? 'bg-zinc-800' 
+                      : 'bg-gradient-to-r from-blue-800 to-blue-600 shadow-blue-900/40 group-hover:shadow-blue-600/50 group-hover:scale-105'}`}>
+                    {liveLoading ? <RefreshCw size={20} className="animate-spin" /> : <Play size={20} fill="currentColor" />}
+                    <span>{liveLoading ? 'YÜKLENİYOR...' : 'CANLI BAŞLA'}</span>
+                  </div>
+                </div>
+              </button>
+
+              {/* MANUAL SIMULATION CARD */}
+              <button 
+                onClick={handleStart}
+                className="group relative h-[22rem] rounded-[2.5rem] overflow-hidden text-left transition-all hover:scale-[1.02] shadow-2xl shadow-black/50 ring-1 ring-white/10 hover:ring-zinc-500/30"
+              >
+                <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-3xl z-0" />
+                <div className="relative z-10 p-10 h-full flex flex-col justify-between items-center text-center">
+                  <div className="w-20 h-20 bg-zinc-800/40 rounded-3xl flex items-center justify-center backdrop-blur-md ring-1 ring-zinc-500/30 group-hover:bg-zinc-700 group-hover:text-white transition-all text-zinc-400 shadow-xl shadow-black/30">
+                    <Zap size={40} />
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h2 className="text-3xl font-black text-white tracking-tighter group-hover:text-zinc-300 transition-colors">
+                      Manuel Simülasyon
+                    </h2>
+                    <p className="text-zinc-400 font-medium leading-relaxed max-w-xs mx-auto">
+                      Kendi Şampiyonlar Ligi turnuvanı başlat. Maçları simüle et veya elinle tur atlat.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-lg font-bold text-white bg-gradient-to-r from-zinc-700 to-zinc-600 px-8 py-4 rounded-2xl shadow-lg shadow-black/40 group-hover:shadow-zinc-600/50 group-hover:scale-105 transition-all duration-300">
+                    <Trophy size={20} />
+                    <span>HEMEN BAŞLA</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* API Key Input (collapsible) */}
+            <div className="w-full max-w-md">
+              <button 
+                onClick={() => setShowKeyInput(!showKeyInput)}
+                className={`flex items-center gap-2 text-sm font-medium mx-auto transition-colors ${showKeyInput ? 'text-zinc-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                <KeyRound size={16} />
+                {showKeyInput ? 'Gizle' : savedApiKey ? '✓ API Key Ayarlı — Değiştir' : 'API Key Gir (football-data.org)'}
+              </button>
+              
+              <AnimatePresence>
+                {showKeyInput && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-4 bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 space-y-3">
+                      <p className="text-xs text-zinc-500">
+                        Ücretsiz key al: <a href="https://www.football-data.org/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">football-data.org</a>. Kayıt ol, dashboard'dan key'i kopyala. Her 5 dakikada bir otomatik yenilenir.
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={inputKey}
+                          onChange={(e) => setInputKey(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { saveApiKey(inputKey); setShowKeyInput(false); }}}
+                          placeholder="API Key gir..."
+                          className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                        <button
+                          onClick={() => { saveApiKey(inputKey); setShowKeyInput(false); }}
+                          className="px-4 py-3 bg-blue-700 hover:bg-blue-600 text-white rounded-xl font-bold text-sm transition-colors"
+                        >
+                          Kaydet
+                        </button>
+                      </div>
+                      {savedApiKey && (
+                        <p className="text-xs text-emerald-500 font-medium">✓ Key kaydedildi (localStorage)</p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         )}
@@ -289,6 +408,29 @@ const ChampionsLeagueApp = ({ onBack, view }) => {
 
                 {phase !== 'SETUP' && (
                   <>
+                    {dataSource === 'live' && (
+                      <>
+                        <div className="w-px h-8 bg-blue-500/20 mx-1 shrink-0" />
+                        <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 rounded-xl border border-blue-500/20 shrink-0">
+                          <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                          <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Canlı</span>
+                          {lastUpdated && (
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              {lastUpdated.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                          <button 
+                            onClick={refresh}
+                            disabled={liveLoading}
+                            className="p-1 hover:bg-blue-500/20 rounded-lg transition-all text-blue-400 disabled:opacity-50"
+                            title="Yenile"
+                          >
+                            <RefreshCw size={14} className={liveLoading ? 'animate-spin' : ''} />
+                          </button>
+                        </div>
+                      </>
+                    )}
+
                     <div className="w-px h-8 bg-blue-500/20 mx-1 shrink-0" />
 
                     <button
@@ -325,6 +467,7 @@ const ChampionsLeagueApp = ({ onBack, view }) => {
 
                     <ActionButton
                       phase={phase}
+                      dataSource={dataSource}
                       allPlayoffsPlayed={allPlayoffsPlayed}
                       allR16Played={allR16Played}
                       allQFPlayed={allQFPlayed}
@@ -354,19 +497,28 @@ const ChampionsLeagueApp = ({ onBack, view }) => {
 
 // ===== ACTION BUTTON =====
 const ActionButton = ({ 
-  phase, allPlayoffsPlayed, allR16Played, allQFPlayed, allSFPlayed, finalMatch,
+  phase, dataSource, allPlayoffsPlayed, allR16Played, allQFPlayed, allSFPlayed, finalMatch,
   simulateAllPlayoffs, initializeR16, simulateAllR16, initializeQF, simulateAllQF,
-  initializeSF, simulateAllSF, initializeFinal, simulateFinal
+  simulateSF, simulateAllSF, initializeFinal, simulateFinal
 }) => {
   const btnClass = "px-4 py-3 font-bold rounded-xl shadow-lg flex items-center gap-2 transition-all whitespace-nowrap text-sm";
   const primary = `${btnClass} bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-blue-500/25 hover:brightness-110`;
   const secondary = `${btnClass} bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-indigo-500/25`;
 
+  if (dataSource === 'live') {
+    return (
+      <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800/50 rounded-xl border border-zinc-700/50 text-zinc-400 text-sm font-medium shrink-0">
+        <Wifi size={16} className="text-blue-400 animate-pulse" />
+        <span>Canlı Fikstür</span>
+      </div>
+    );
+  }
+
   if (phase === 'PLAYOFF' && !allPlayoffsPlayed) {
     return <button onClick={simulateAllPlayoffs} className={primary}>Tümünü Simüle Et</button>;
   }
   if (phase === 'PLAYOFF' && allPlayoffsPlayed) {
-    return <button onClick={initializeR16} className={secondary}><Shuffle size={16} /> Son 16'ya Geç</button>;
+    return <button onClick={initializeR16} className={secondary}><Shuffle size={16} /> Son 16\'ya Geç</button>;
   }
   if (phase === 'R16' && !allR16Played) {
     return <button onClick={simulateAllR16} className={primary}>Simüle Et</button>;
@@ -432,7 +584,7 @@ const CLMatchCard = ({ match, stage, onSelectWinner, isFinal, index = 0 }) => {
   const teamB = match.away || match.teamB;
   const winnerA = match.winner?.id === teamA?.id;
   const winnerB = match.winner?.id === teamB?.id;
-  const isPlayable = !match.played && teamA && teamB;
+  const isPlayable = !!(teamA && teamB);
   const scoreA = match.aggScoreA ?? match.scoreA;
   const scoreB = match.aggScoreB ?? match.scoreB;
 
@@ -498,10 +650,10 @@ const CLTeamRow = ({ team, score, isWinner, isLoser, isPlayable, onClick, isFina
       onClick={onClick}
       disabled={!isPlayable}
       className={`
-        w-full flex items-center gap-3 p-3 rounded-xl transition-all
-        ${isWinner ? 'bg-emerald-500/15 border border-emerald-500/30' : ''}
-        ${isLoser ? 'opacity-40' : ''}
-        ${!isWinner && !isLoser && isPlayable ? 'hover:bg-white/5 cursor-pointer' : ''}
+        w-full flex items-center gap-3 p-3 rounded-xl transition-all border border-transparent
+        ${isWinner ? 'bg-emerald-500/15 border-emerald-500/30' : ''}
+        ${isLoser ? 'opacity-40 hover:opacity-100 hover:bg-white/5 hover:border-blue-500/30 cursor-pointer' : ''}
+        ${!isWinner && !isLoser && isPlayable ? 'hover:bg-white/5 cursor-pointer hover:border-blue-500/30' : ''}
         ${!isPlayable && !isWinner && !isLoser ? 'cursor-default' : ''}
       `}
     >

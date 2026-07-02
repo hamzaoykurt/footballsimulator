@@ -92,6 +92,11 @@ export const CLProvider = ({ children }) => {
   const [finalMatch, setFinalMatch] = useState(null);
   const [champion, setChampion] = useState(null);
 
+  // Live data state
+  const [dataSource, setDataSource] = useState('static'); // 'static' | 'live'
+  const [apiKey, setApiKey] = useState(localStorage.getItem('cl_api_key') || '');
+  const [lastUpdated, setLastUpdated] = useState(null);
+
   // Initialize tournament
   const startTournament = useCallback(() => {
     console.log('[CLContext] Starting tournament...');
@@ -308,7 +313,83 @@ export const CLProvider = ({ children }) => {
     setRightSF(null);
     setFinalMatch(null);
     setChampion(null);
+    setDataSource('static');
+    setLastUpdated(null);
   }, []);
+
+  // === LIVE DATA FUNCTIONS ===
+
+  const saveApiKey = useCallback((key) => {
+    setApiKey(key);
+    if (key) localStorage.setItem('cl_api_key', key);
+    else localStorage.removeItem('cl_api_key');
+  }, []);
+
+  const mergeMatches = (local, incoming) => {
+    if (!incoming || incoming.length === 0) return local;
+    if (!local || local.length === 0) return incoming;
+    return incoming.map(match => {
+      const localMatch = local.find(m => m.id === match.id);
+      if (localMatch && localMatch.played && match.played) {
+        return localMatch;
+      }
+      if (match.played) return match;
+      return localMatch || match;
+    });
+  };
+
+  const loadLiveData = useCallback((transformedData) => {
+    if (!transformedData) return;
+    console.log('[CLContext] Loading live CL data. Phase:', transformedData.phase);
+    
+    if (transformedData.leftPlayoffs) {
+      setLeftPlayoffs(prev => mergeMatches(prev, transformedData.leftPlayoffs));
+    }
+    if (transformedData.rightPlayoffs) {
+      setRightPlayoffs(prev => mergeMatches(prev, transformedData.rightPlayoffs));
+    }
+    if (transformedData.leftR16) {
+      setLeftR16(prev => mergeMatches(prev, transformedData.leftR16));
+    }
+    if (transformedData.rightR16) {
+      setRightR16(prev => mergeMatches(prev, transformedData.rightR16));
+    }
+    if (transformedData.leftQF) {
+      setLeftQF(prev => mergeMatches(prev, transformedData.leftQF));
+    }
+    if (transformedData.rightQF) {
+      setRightQF(prev => mergeMatches(prev, transformedData.rightQF));
+    }
+    if (transformedData.leftSF) {
+      setLeftSF(prev => {
+        if (prev?.played && transformedData.leftSF.played) return prev;
+        return transformedData.leftSF;
+      });
+    }
+    if (transformedData.rightSF) {
+      setRightSF(prev => {
+        if (prev?.played && transformedData.rightSF.played) return prev;
+        return transformedData.rightSF;
+      });
+    }
+    if (transformedData.finalMatch) {
+      setFinalMatch(prev => {
+        if (prev?.played && transformedData.finalMatch.played) return prev;
+        return transformedData.finalMatch;
+      });
+    }
+    if (transformedData.champion !== undefined) setChampion(transformedData.champion);
+    if (transformedData.lastUpdated) setLastUpdated(new Date(transformedData.lastUpdated));
+    
+    setDataSource('live');
+    setIsReady(true);
+    if (transformedData.phase) setPhase(transformedData.phase);
+  }, []);
+
+  const switchToStatic = useCallback(() => {
+    resetTournament();
+    setDataSource('static');
+  }, [resetTournament]);
 
   // === MANUAL CONTROL ===
   
@@ -391,6 +472,7 @@ export const CLProvider = ({ children }) => {
       leftQF, rightQF,
       leftSF, rightSF,
       finalMatch, champion,
+      dataSource, apiKey, lastUpdated,
       
       startTournament,
       simulatePlayoff, simulateAllPlayoffs,
@@ -400,6 +482,7 @@ export const CLProvider = ({ children }) => {
       initializeFinal, simulateFinal,
       resetTournament,
       setManualWinner,
+      saveApiKey, loadLiveData, switchToStatic,
       
       allPlayoffsPlayed, allR16Played, allQFPlayed, allSFPlayed,
     }}>

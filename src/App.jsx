@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TournamentProvider } from './context/TournamentContext';
 import { CLProvider } from './context/CLContext';
+import { CustomBracketProvider } from './context/CustomBracketContext';
 import TournamentSelector from './components/TournamentSelector';
 import WorldCupApp from './components/WorldCupApp';
 import ChampionsLeagueApp from './components/ChampionsLeagueApp';
+import CustomBracketApp from './components/CustomBracketApp';
 import FixtureGenerator from './components/FixtureGenerator';
 
 /**
@@ -26,6 +28,7 @@ const App = () => {
     <div className="bg-zinc-950 min-h-screen text-white font-sans overflow-x-hidden">
       <TournamentProvider>
         <CLProvider>
+          <CustomBracketProvider>
             {/* SIMPLIFIED RENDERING - NO ANIMATE PRESENCE TO PREVENT LOCKS */}
             {view === 'selector' && (
               <div className="w-full h-full">
@@ -44,12 +47,19 @@ const App = () => {
                 <ChampionsLeagueApp onBack={() => setView('selector')} view={view} />
               </div>
             )}
+
+            {view === 'custombracket' && (
+              <div className="w-full h-full">
+                <CustomBracketApp onBack={() => setView('selector')} view={view} />
+              </div>
+            )}
             
             {view === 'fixture' && (
               <div className="w-full h-full">
                 <FixtureGenerator onBack={() => setView('selector')} view={view} />
               </div>
             )}
+          </CustomBracketProvider>
         </CLProvider>
       </TournamentProvider>
     </div>

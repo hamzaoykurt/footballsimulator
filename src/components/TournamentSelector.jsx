@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Globe, Star, Sparkles, ArrowRight } from 'lucide-react';
+import { Trophy, Globe, Star, Sparkles, ArrowRight, LayoutTemplate } from 'lucide-react';
 import AnimatedBackground from './AnimatedBackground';
 
 /**
@@ -35,6 +35,16 @@ const TournamentSelector = ({ onSelect }) => {
       accent: 'group-hover:text-amber-400',
       glow: 'group-hover:shadow-amber-500/20',
       ring: 'group-hover:ring-amber-500/40',
+    },
+    {
+      id: 'custombracket',
+      icon: LayoutTemplate,
+      title: 'Fikstürünü Tasarla',
+      subtitle: 'Kendi Eşleşme Ağacını Kur',
+      tags: ['Ülkeler', 'Kulüpler'],
+      accent: 'group-hover:text-purple-400',
+      glow: 'group-hover:shadow-purple-500/20',
+      ring: 'group-hover:ring-purple-500/40',
     },
     {
       id: 'fixture',
@@ -75,7 +85,7 @@ const TournamentSelector = ({ onSelect }) => {
         </motion.div>
 
         {/* Liquid Glass Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full px-4 md:px-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full px-4 md:px-0">
           {cards.map((card, idx) => (
             <motion.button
               key={card.id}

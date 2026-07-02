@@ -3,9 +3,10 @@ import { Reorder, motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, RotateCcw, Play, Zap, Globe, Shield, 
   ChevronLeft, Swords, Star, Crown, GripVertical, 
-  LayoutTemplate, ArrowUpRight, Home
+  LayoutTemplate, ArrowUpRight, Home, Wifi, WifiOff, RefreshCw, KeyRound
 } from 'lucide-react';
 import { useTournament } from '../context/TournamentContext';
+import { useLiveData } from '../hooks/useLiveData';
 import AnimatedBackground from './AnimatedBackground';
 
 /**
@@ -32,11 +33,33 @@ const WorldCupApp = ({ onBack, view }) => {
     simulateRound,
     resetTournament,
     setManualWinner,
+    setMatchResult,
+    resetMatchResult,
     reorderStandings,
     updateTeamPoints,
     customThirds,
-    setManualThirdsOrder
+    setManualThirdsOrder,
+    dataSource,
+    apiKey: savedApiKey,
+    lastUpdated: contextLastUpdated,
+    loadLiveData,
+    saveApiKey,
+    switchToStatic
   } = useTournament();
+
+  // Live data hook
+  const { data: liveData, loading: liveLoading, error: liveError, lastUpdated, isLive, refresh } = useLiveData(savedApiKey);
+  
+  // Local state for API key input
+  const [inputKey, setInputKey] = useState(savedApiKey || '');
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  
+  // Auto-load live data when it arrives
+  useEffect(() => {
+    if (liveData && dataSource === 'live') {
+      loadLiveData(liveData);
+    }
+  }, [liveData, dataSource, loadLiveData]);
 
   const allGroupsComplete = React.useMemo(() => {
     if (!groupMatches || Object.keys(groupMatches).length === 0) return false;
@@ -135,6 +158,7 @@ const WorldCupApp = ({ onBack, view }) => {
   const handleStart = () => startTournament();
   const handleBack = () => onBack();
   const handleSelectWinner = (matchId, winnerId) => setManualWinner(matchId, winnerId);
+  const handleResetMatch = (matchId) => resetMatchResult(matchId);
   const handleReorder = (groupName, newOrder) => reorderStandings(groupName, newOrder);
 
   return (
@@ -168,44 +192,142 @@ const WorldCupApp = ({ onBack, view }) => {
             </div>
           </header>
 
-          {/* SETUP VIEW - REFINED FOR MOBILE */}
+          {/* SETUP VIEW - LIVE DATA OR MANUAL MODE */}
           {phase === 'SETUP' && (
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center min-h-[60vh] relative"
+              className="flex flex-col items-center justify-center min-h-[60vh] relative space-y-8"
             >
-              <div className="w-full max-w-md">
+              {/* Mode Selection Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
+                
+                {/* LIVE DATA CARD */}
                 <button 
-                  onClick={handleStart}
-                  className="w-full group relative h-[28rem] rounded-[2.5rem] overflow-hidden text-left transition-all hover:scale-[1.02] shadow-2xl shadow-black/50 ring-1 ring-white/10 group-hover:ring-green-500/30"
+                  disabled={!savedApiKey && !inputKey}
+                  onClick={() => { 
+                    const keyToUse = inputKey || savedApiKey;
+                    if (!keyToUse) { setShowKeyInput(true); return; }
+                    saveApiKey(keyToUse);
+                    if (liveData) {
+                      loadLiveData(liveData);
+                    }
+                  }}
+                  className="group relative h-[22rem] rounded-[2.5rem] overflow-hidden text-left transition-all hover:scale-[1.02] shadow-2xl shadow-black/50 ring-1 ring-white/10 hover:ring-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                  {/* Liquid Background Layer */}
-                  <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-3xl transition-colors z-0" />
-                  
-                  {/* Background Image */}
-                  <div className="absolute inset-0 bg-[url('https://upload.wikimedia.org/wikipedia/en/thumb/6/65/2026_FIFA_World_Cup_logo.svg/800px-2026_FIFA_World_Cup_logo.svg.png')] opacity-10 bg-contain bg-center bg-no-repeat group-hover:opacity-20 transition-opacity mix-blend-overlay" />
-                  
+                  <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-3xl z-0" />
                   <div className="relative z-10 p-10 h-full flex flex-col justify-between items-center text-center">
-                    <div className="w-20 h-20 bg-green-900/40 rounded-3xl flex items-center justify-center backdrop-blur-md ring-1 ring-green-500/30 group-hover:bg-green-800 group-hover:text-white transition-all text-green-400 shadow-xl shadow-green-900/30">
-                      <Trophy size={40} />
+                    <div className="w-20 h-20 bg-emerald-900/40 rounded-3xl flex items-center justify-center backdrop-blur-md ring-1 ring-emerald-500/30 group-hover:bg-emerald-800 group-hover:text-white transition-all text-emerald-400 shadow-xl shadow-emerald-900/30">
+                      {liveLoading ? <RefreshCw size={40} className="animate-spin" /> : <Wifi size={40} />}
                     </div>
                     
                     <div className="space-y-4">
-                      <h2 className="text-4xl font-black text-white tracking-tighter group-hover:text-green-400 transition-colors">
-                        Turnuvayı Başlat
+                      <h2 className="text-3xl font-black text-white tracking-tighter group-hover:text-emerald-400 transition-colors">
+                        Canlı Veri
                       </h2>
                       <p className="text-zinc-400 font-medium leading-relaxed max-w-xs mx-auto">
-                        Dünyanın en prestijli kupası için mücadele et. Tarih yazmaya hazır ol.
+                        Gerçek zamanlı skorlar, sonuçlar ve eşleşmeleri otomatik çek. Turnuva hangi aşamadaysa oradan başla.
                       </p>
+                      {!savedApiKey && !inputKey && (
+                        <span className="inline-flex items-center gap-1.5 text-amber-400 text-sm font-semibold">
+                          <KeyRound size={14} />
+                          API Key gerekli (aşağıda gir)
+                        </span>
+                      )}
+                      {liveError && (
+                        <span className="text-red-400 text-xs block leading-relaxed">{liveError}</span>
+                      )}
+                      {isLive && liveData && !liveError && (
+                        <span className="inline-flex items-center gap-1.5 text-emerald-400 text-sm font-bold">
+                          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                          Veri Hazır — {liveData.phase === 'KNOCKOUT' ? 'Eleme Turu' : liveData.phase === 'GROUPS' ? 'Grup Aşaması' : 'Hazır'}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-3 text-lg font-bold text-white bg-gradient-to-r from-green-800 to-green-600 px-8 py-4 rounded-2xl shadow-lg shadow-green-900/40 group-hover:shadow-green-600/50 group-hover:scale-105 transition-all duration-300">
-                      <Play size={20} fill="currentColor" />
-                      <span>HEMEN BAŞLA</span>
+                    <div className={`flex items-center gap-3 text-lg font-bold text-white px-8 py-4 rounded-2xl shadow-lg transition-all duration-300
+                      ${(!savedApiKey && !inputKey) 
+                        ? 'bg-zinc-800' 
+                        : 'bg-gradient-to-r from-emerald-800 to-emerald-600 shadow-emerald-900/40 group-hover:shadow-emerald-600/50 group-hover:scale-105'}`}>
+                      {liveLoading ? <RefreshCw size={20} className="animate-spin" /> : <Play size={20} fill="currentColor" />}
+                      <span>{liveLoading ? 'YÜKLENİYOR...' : 'CANLI BAŞLA'}</span>
                     </div>
                   </div>
                 </button>
+
+                {/* MANUAL SIMULATION CARD */}
+                <button 
+                  onClick={startTournament}
+                  className="group relative h-[22rem] rounded-[2.5rem] overflow-hidden text-left transition-all hover:scale-[1.02] shadow-2xl shadow-black/50 ring-1 ring-white/10 hover:ring-zinc-500/30"
+                >
+                  <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-3xl z-0" />
+                  <div className="relative z-10 p-10 h-full flex flex-col justify-between items-center text-center">
+                    <div className="w-20 h-20 bg-zinc-800/40 rounded-3xl flex items-center justify-center backdrop-blur-md ring-1 ring-zinc-500/30 group-hover:bg-zinc-700 group-hover:text-white transition-all text-zinc-400 shadow-xl shadow-black/30">
+                      <Zap size={40} />
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <h2 className="text-3xl font-black text-white tracking-tighter group-hover:text-zinc-300 transition-colors">
+                        Manuel Simülasyon
+                      </h2>
+                      <p className="text-zinc-400 font-medium leading-relaxed max-w-xs mx-auto">
+                        Kendi gruplarını ve eşleşmelerini oluştur. Takım güçlerine göre simüle et veya manuel yönet.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-lg font-bold text-white bg-gradient-to-r from-zinc-700 to-zinc-600 px-8 py-4 rounded-2xl shadow-lg shadow-black/40 group-hover:shadow-zinc-600/50 group-hover:scale-105 transition-all duration-300">
+                      <Trophy size={20} />
+                      <span>SİMÜLE ET</span>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {/* API Key Input (always visible hint + collapsible form) */}
+              <div className="w-full max-w-md">
+                <button 
+                  onClick={() => setShowKeyInput(!showKeyInput)}
+                  className={`flex items-center gap-2 text-sm font-medium mx-auto transition-colors ${showKeyInput ? 'text-zinc-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  <KeyRound size={16} />
+                  {showKeyInput ? 'Gizle' : savedApiKey ? '✓ API Key Ayarlı — Değiştir' : 'API Key Gir (football-data.org)'}
+                </button>
+                
+                <AnimatePresence>
+                  {showKeyInput && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-4 bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 space-y-3">
+                        <p className="text-xs text-zinc-500">
+                          Ücretsiz key al: <a href="https://www.football-data.org/" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">football-data.org</a> — Kayıt ol, dashboard'dan key'i kopyala. Free tier 2026 WC'yi kapsar. Her 5 dakikada otomatik güncellenir.
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={inputKey}
+                            onChange={(e) => setInputKey(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { saveApiKey(inputKey); setShowKeyInput(false); }}}
+                            placeholder="API Key gir..."
+                            className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                          />
+                          <button
+                            onClick={() => { saveApiKey(inputKey); setShowKeyInput(false); }}
+                            className="px-4 py-3 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl font-bold text-sm transition-colors"
+                          >
+                            Kaydet
+                          </button>
+                        </div>
+                        {savedApiKey && (
+                          <p className="text-xs text-emerald-500 font-medium">✓ Key kaydedildi (localStorage)</p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </motion.div>
           )}
@@ -364,8 +486,8 @@ const WorldCupApp = ({ onBack, view }) => {
                             <div className="flex justify-center">
                                 <BracketMatchCard 
                                   match={round[0]} 
-                                  onSelectWinner={(winnerId) => handleSelectWinner(round[0].id, winnerId)}
-                                  matchIndex={0}
+                                  onSelectWinner={handleSelectWinner}
+                                  onResetMatch={handleResetMatch}
                                   isFinal={true}
                                 />
                             </div>
@@ -386,8 +508,8 @@ const WorldCupApp = ({ onBack, view }) => {
                                         <div className="relative">
                                             <BracketMatchCard 
                                                 match={pair[0]} 
-                                                onSelectWinner={(winnerId) => handleSelectWinner(pair[0].id, winnerId)}
-                                                matchIndex={pIdx * 2}
+                                                onSelectWinner={handleSelectWinner}
+                                                onResetMatch={handleResetMatch}
                                             />
                                             {/* Connector Down */}
                                             <div className="absolute -bottom-4 left-1/2 w-px h-4 bg-white/10 z-0" />
@@ -408,8 +530,8 @@ const WorldCupApp = ({ onBack, view }) => {
                                             <div className="absolute -top-4 left-1/2 w-px h-4 bg-white/10 z-0" />
                                             <BracketMatchCard 
                                                 match={pair[1]} 
-                                                onSelectWinner={(winnerId) => handleSelectWinner(pair[1].id, winnerId)}
-                                                matchIndex={(pIdx * 2) + 1}
+                                                onSelectWinner={handleSelectWinner}
+                                                onResetMatch={handleResetMatch}
                                             />
                                          </div>
                                     )}
@@ -522,6 +644,29 @@ const WorldCupApp = ({ onBack, view }) => {
               <>
                 <div className="h-8 w-px bg-green-500/20 mx-1 shrink-0" />
 
+                {/* Live Data Indicator */}
+                {dataSource === 'live' && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20 shrink-0">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Canlı</span>
+                    {lastUpdated && (
+                      <span className="text-[10px] text-zinc-500 font-mono">
+                        {lastUpdated.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                    <button 
+                      onClick={refresh}
+                      disabled={liveLoading}
+                      className="p-1 hover:bg-emerald-500/20 rounded-lg transition-all text-emerald-400 disabled:opacity-50"
+                      title="Yenile"
+                    >
+                      <RefreshCw size={14} className={liveLoading ? 'animate-spin' : ''} />
+                    </button>
+                  </div>
+                )}
+
+                <div className="h-8 w-px bg-green-500/20 mx-1 shrink-0" />
+
                 {/* Reset Button */}
                <button 
                   onClick={() => resetTournament('SETUP')}
@@ -588,6 +733,7 @@ const WorldCupApp = ({ onBack, view }) => {
                    simulateAllGroups={simulateAllGroups}
                    initializeKnockout={initializeKnockout}
                    simulateRound={simulateRound}
+                   dataSource={dataSource}
                 />
               </>
             )}
@@ -600,11 +746,20 @@ const WorldCupApp = ({ onBack, view }) => {
 
 // ... SUBCOMPONENTS (Styled) ...
 
-const WCActionButton = ({ phase, allGroupsComplete, champion, simulateAllGroups, initializeKnockout, simulateRound }) => {
+const WCActionButton = ({ phase, allGroupsComplete, champion, simulateAllGroups, initializeKnockout, simulateRound, dataSource }) => {
   const btnBase = "h-11 px-4 text-sm rounded-xl font-bold flex items-center gap-2.5 transition-all active:scale-95 shadow-lg whitespace-nowrap";
   const btnPrimary = `${btnBase} bg-gradient-to-r from-green-700 to-green-600 text-white hover:brightness-110 shadow-green-900/40 border border-green-500/20`;
 
   if (phase === 'GROUPS') {
+    // In live mode, don't show "Simulate All" since data is real
+    if (dataSource === 'live' && !allGroupsComplete) {
+      return (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800/50 rounded-xl border border-zinc-700/50 text-zinc-400 text-sm font-medium">
+          <Wifi size={16} className="text-emerald-400" />
+          <span>Canlı Veri</span>
+        </div>
+      );
+    }
     if (!allGroupsComplete) return (
       <button onClick={simulateAllGroups} className={btnPrimary}>
         <Zap size={18} fill="currentColor" /> 
@@ -679,26 +834,100 @@ const GroupCard = ({ name, teams, matches, onSimulate, onReorder, onUpdatePoints
   );
 };
 
-const BracketMatchCard = ({ match, onSelectWinner, matchIndex }) => {
-  const isFinal = match.round === 2;
-  const isPlayable = !match.played && match.teamA && match.teamB;
-  
+const BracketMatchCard = ({ match, onSelectWinner, onResetMatch, isFinal = false }) => {
+  const teamA = match.teamA;
+  const teamB = match.teamB;
+  const hasTeams = teamA && teamB;
+  const isPlayed = match.played;
+  const winnerA = match.winner?.id === teamA?.id;
+  const winnerB = match.winner?.id === teamB?.id;
+
+  const handleSelect = (selectedTeamId) => {
+    if (!hasTeams || !onSelectWinner) return;
+    onSelectWinner(match.id, selectedTeamId);
+  };
+
+  const handleReset = (e) => {
+    e.stopPropagation();
+    if (onResetMatch) onResetMatch(match.id);
+  };
+
   return (
-    <div style={{ backfaceVisibility: 'hidden' }} className={`relative bg-gradient-to-b from-zinc-900 to-[#0d0d0d] ring-2 ring-inset ${isFinal ? 'ring-emerald-500/60 shadow-[0_0_60px_rgba(52,211,153,0.25)]' : 'ring-zinc-700/50 hover:ring-green-600/40'} rounded-2xl overflow-hidden transition-all transform-gpu ${isFinal ? 'min-w-[28rem]' : ''}`}>
+    <div style={{ backfaceVisibility: 'hidden' }} className={`relative bg-gradient-to-b from-zinc-900 to-[#0d0d0d] ring-2 ring-inset ${isFinal ? 'ring-emerald-500/60 shadow-[0_0_60px_rgba(52,211,153,0.25)]' : 'ring-zinc-700/50 hover:ring-green-600/40'} rounded-2xl overflow-hidden transition-all duration-300 transform-gpu ${isFinal ? 'min-w-[28rem]' : 'min-w-[18rem] w-full'}`}>
       {isFinal && <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-transparent via-emerald-500 to-transparent" />}
       {isFinal && <div className="absolute bottom-0 inset-x-0 h-2 bg-gradient-to-r from-transparent via-emerald-500 to-transparent" />}
       
-      <div className={`${isFinal ? 'px-10 py-8 space-y-8' : 'p-1 space-y-0.5'}`}>
-         <TeamRow team={match.teamA} score={match.scoreA} isWinner={match.winner?.id === match.teamA?.id} isPlayable={isPlayable} onClick={() => onSelectWinner(match.teamA?.id)} isFinal={isFinal} />
-         
-         {!isFinal && <div className="h-px bg-white/5 mx-2" />}
-         
-         <TeamRow team={match.teamB} score={match.scoreB} isWinner={match.winner?.id === match.teamB?.id} isPlayable={isPlayable} onClick={() => onSelectWinner(match.teamB?.id)} isFinal={isFinal} />
+      <div className={`${isFinal ? 'px-10 py-8 space-y-4' : 'p-3 space-y-2'}`}>
+        
+        {/* Team A Row */}
+        <button 
+          disabled={!hasTeams}
+          onClick={() => handleSelect(teamA?.id)}
+          className={`
+            w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all relative overflow-hidden text-left
+            ${winnerA ? 'bg-emerald-500/15 border border-emerald-500/30' : 'hover:bg-white/5 border border-transparent'} 
+            ${winnerB ? 'opacity-40' : ''}
+          `}
+        >
+          {winnerA && <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />}
+          <div className={`relative flex-shrink-0 rounded overflow-hidden shadow-sm ${isFinal ? 'w-14 h-10' : 'w-6 h-4'}`}>
+             <img src={`https://flagcdn.com/${isFinal ? 'w80' : 'w40'}/${teamA?.code || 'placeholder'}.png`} className="w-full h-full object-cover" onError={(e) => e.target.style.display='none'} alt="" />
+          </div>
+          <span className={`flex-1 text-left text-sm truncate font-medium ${winnerA ? 'text-green-400 font-bold' : 'text-zinc-400'} ${isFinal ? 'text-lg' : ''}`}>
+            {teamA?.name || '...'}
+          </span>
+          
+          {isPlayed && match.scoreA !== null && (
+            <span className={`w-6 h-6 flex items-center justify-center rounded-md text-xs font-bold ${winnerA ? 'bg-green-600 text-white animate-pulse' : 'bg-zinc-800 text-zinc-500'} ${isFinal ? 'scale-125' : ''}`}>
+              {match.scoreA}
+            </span>
+          )}
+        </button>
+
+        {/* VS / Reset Area */}
+        {!hasTeams ? (
+          <div className="text-center text-xs text-zinc-600 py-1">Takımlar bekleniyor...</div>
+        ) : isPlayed ? (
+          <div className="flex justify-center">
+            <button 
+              onClick={handleReset}
+              className="px-4 py-1 bg-zinc-800/80 hover:bg-red-950/40 text-zinc-500 hover:text-red-400 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border border-zinc-700/50"
+            >
+              ↺ Sıfırla
+            </button>
+          </div>
+        ) : null}
+
+        {/* Team B Row */}
+        <button 
+          disabled={!hasTeams}
+          onClick={() => handleSelect(teamB?.id)}
+          className={`
+            w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all relative overflow-hidden text-left
+            ${winnerB ? 'bg-emerald-500/15 border border-emerald-500/30' : 'hover:bg-white/5 border border-transparent'} 
+            ${winnerA ? 'opacity-40' : ''}
+          `}
+        >
+          {winnerB && <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />}
+          <div className={`relative flex-shrink-0 rounded overflow-hidden shadow-sm ${isFinal ? 'w-14 h-10' : 'w-6 h-4'}`}>
+             <img src={`https://flagcdn.com/${isFinal ? 'w80' : 'w40'}/${teamB?.code || 'placeholder'}.png`} className="w-full h-full object-cover" onError={(e) => e.target.style.display='none'} alt="" />
+          </div>
+          <span className={`flex-1 text-left text-sm truncate font-medium ${winnerB ? 'text-green-400 font-bold' : 'text-zinc-400'} ${isFinal ? 'text-lg' : ''}`}>
+            {teamB?.name || '...'}
+          </span>
+          
+          {isPlayed && match.scoreB !== null && (
+            <span className={`w-6 h-6 flex items-center justify-center rounded-md text-xs font-bold ${winnerB ? 'bg-green-600 text-white animate-pulse' : 'bg-zinc-800 text-zinc-500'} ${isFinal ? 'scale-125' : ''}`}>
+              {match.scoreB}
+            </span>
+          )}
+        </button>
       </div>
     </div>
   );
 };
 
+// Keep old TeamRow for backward compat (used elsewhere, not in knockout anymore)
 const TeamRow = ({ team, score, isWinner, isPlayable, onClick, isFinal }) => (
   <button 
     disabled={!isPlayable} 

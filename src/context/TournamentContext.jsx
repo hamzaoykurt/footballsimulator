@@ -85,6 +85,11 @@ export const TournamentProvider = ({ children }) => {
   const [knockoutMatches, setKnockoutMatches] = useState([]);
   const [champion, setChampion] = useState(null);
   const [customThirds, setCustomThirds] = useState([]); // Array of team IDs in custom order
+  
+  // Live data state
+  const [dataSource, setDataSource] = useState('static'); // 'static' | 'live'
+  const [apiKey, setApiKey] = useState(localStorage.getItem('wc_api_key') || '');
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   // Fixed group assignments for World Cup 2026
   const FIXED_GROUPS = {
@@ -292,19 +297,32 @@ export const TournamentProvider = ({ children }) => {
       }
     });
 
-    // Sort third places
-    thirdPlaces.sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      if (b.gd !== a.gd) return b.gd - a.gd;
-      return b.gf - a.gf;
-    });
-
-    const bestThirds = thirdPlaces.slice(0, 8);
+    // Respect manual ordering of thirds if user has customized it
+    // Otherwise sort by points/gd/gf
+    let bestThirds;
+    if (customThirds && customThirds.length > 0) {
+      // User has manually reordered thirds — restore their order
+      const thirdsById = Object.fromEntries(thirdPlaces.map(t => [t.id, t]));
+      const orderedThirds = customThirds
+        .map(id => thirdsById[id])
+        .filter(Boolean);
+      // Append any that weren't in customThirds (safety)
+      thirdPlaces.forEach(t => {
+        if (!orderedThirds.find(o => o.id === t.id)) orderedThirds.push(t);
+      });
+      bestThirds = orderedThirds.slice(0, 8);
+    } else {
+      thirdPlaces.sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.gd !== a.gd) return b.gd - a.gd;
+        return b.gf - a.gf;
+      });
+      bestThirds = thirdPlaces.slice(0, 8);
+    }
     
-    // Seed all qualifiers
-    winners.sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
-    runnersUp.sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
-
+    // IMPORTANT: Do NOT re-sort winners/runnersUp here.
+    // The user may have manually reordered standings — respect their order.
+    // standings[key][0] is always winner, [1] is runner-up per the user's manual arrangement.
     const allQualified = [...winners, ...runnersUp, ...bestThirds];
     
     // Create Round of 32
@@ -315,6 +333,8 @@ export const TournamentProvider = ({ children }) => {
       const teamA = allQualified[i];
       const teamB = allQualified[totalTeams - 1 - i];
       
+      if (!teamA || !teamB) continue;
+
       round32Matches.push({
         id: `R32-${i}`,
         round: 32,
@@ -329,7 +349,7 @@ export const TournamentProvider = ({ children }) => {
     
     setKnockoutMatches([round32Matches]);
     setPhase('KNOCKOUT');
-  }, [standings]);
+  }, [standings, customThirds]);
 
   // Simulate knockout round
   const simulateRound = useCallback(() => {
@@ -398,39 +418,135 @@ export const TournamentProvider = ({ children }) => {
     setStandings({});
     setKnockoutMatches([]);
     setChampion(null);
+    setDataSource('static');
+    setLastUpdated(null);
   }, []);
+
+  // === LIVE DATA FUNCTIONS ===
+  
+  // Save API key to localStorage and state
+  const saveApiKey = useCallback((key) => {
+    setApiKey(key);
+    if (key) localStorage.setItem('wc_api_key', key);
+    else localStorage.removeItem('wc_api_key');
+  }, []);
+
+  // Load live data from API (transformed data)
+  const loadLiveData = useCallback((transformedData) => {
+    if (!transformedData) return;
+    console.log('[TournamentContext] Loading live data. Phase:', transformedData.phase);
+    
+    const incomingPhase = transformedData.phase;
+
+    // Always load groups/standings for context (even if we're in knockout)
+    if (transformedData.groups && Object.keys(transformedData.groups).length > 0) {
+      setGroups(transformedData.groups);
+    }
+    if (transformedData.groupMatches && Object.keys(transformedData.groupMatches).length > 0) {
+      setGroupMatches(transformedData.groupMatches);
+    }
+    if (transformedData.standings && Object.keys(transformedData.standings).length > 0) {
+      setStandings(transformedData.standings);
+    }
+
+    // Knockout matches — only update played/finished ones to preserve manual edits
+    if (transformedData.knockoutMatches && transformedData.knockoutMatches.length > 0) {
+      setKnockoutMatches(prev => {
+        // If we have no local knockout data yet, just set the API data
+        if (!prev || prev.length === 0) {
+          return transformedData.knockoutMatches;
+        }
+        // Merge: update only matches that are now FINISHED in the API
+        // but don't overwrite matches the user has manually edited
+        return transformedData.knockoutMatches.map((round, ri) => {
+          const localRound = prev[ri];
+          if (!localRound) return round;
+          return round.map(match => {
+            const localMatch = localRound.find(m => m.id === match.id);
+            // If user manually played this match, keep their data
+            if (localMatch && localMatch.played && match.played) {
+              // Both played — prefer local (user may have corrected a score)
+              return localMatch;
+            }
+            // API says played but local doesn't — take API data
+            if (match.played) return match;
+            // Not played in API — keep local
+            return localMatch || match;
+          });
+        });
+      });
+    }
+
+    if (transformedData.champion !== undefined) setChampion(transformedData.champion);
+    if (transformedData.lastUpdated) setLastUpdated(new Date(transformedData.lastUpdated));
+    
+    setDataSource('live');
+    setIsReady(true);
+    
+    // Set phase — if API says KNOCKOUT and we have knockout data, go directly to KNOCKOUT
+    if (incomingPhase === 'KNOCKOUT' || incomingPhase === 'COMPLETE') {
+      setPhase('KNOCKOUT');
+    } else if (incomingPhase) {
+      setPhase(incomingPhase);
+    }
+  }, []);
+
+  // Switch back to static mode
+  const switchToStatic = useCallback(() => {
+    resetTournament();
+    setDataSource('static');
+  }, [resetTournament]);
 
   // === MANUAL CONTROL FUNCTIONS ===
   
-  // Manually select winner for a knockout match
-  const setManualWinner = useCallback((matchId, winnerId) => {
-    console.log('[TournamentContext] setManualWinner called:', matchId, winnerId);
+  // Helper: find round index for a match
+  const findMatchRound = useCallback((allRounds, matchId) => {
+    for (let i = 0; i < allRounds.length; i++) {
+      if (allRounds[i].some(m => m.id === matchId)) return i;
+    }
+    return -1;
+  }, []);
+
+  // Set match result with custom scores (knockout only)
+  // When a match result changes, all subsequent rounds are cleared and rebuilt
+  const setMatchResult = useCallback((matchId, scoreA, scoreB) => {
+    console.log('[TournamentContext] setMatchResult:', matchId, scoreA, scoreB);
     setKnockoutMatches(prev => {
-      const newKnockout = prev.map((round, roundIndex) => {
-        const updatedRound = round.map(match => {
+      const roundIndex = findMatchRound(prev, matchId);
+      if (roundIndex === -1) return prev;
+
+      // 1. Trim all subsequent rounds (they become invalid)
+      const trimmedRounds = prev.slice(0, roundIndex + 1);
+      
+      // 2. Clear champion
+      setChampion(null);
+
+      // 3. Update the match with new scores
+      const updatedRounds = trimmedRounds.map((round, ri) => {
+        if (ri !== roundIndex) return round;
+        return round.map(match => {
           if (match.id !== matchId) return match;
           
-          const winner = match.teamA?.id === winnerId ? match.teamA : match.teamB;
-          const loser = match.teamA?.id === winnerId ? match.teamB : match.teamA;
+          const winner = scoreA > scoreB ? match.teamA : match.teamB;
           
-          // Generate a plausible score favoring the winner
-          const scoreA = match.teamA?.id === winnerId ? 2 : 0;
-          const scoreB = match.teamB?.id === winnerId ? 2 : 0;
-          
-          return { ...match, scoreA, scoreB, winner, played: true };
+          return { 
+            ...match, 
+            scoreA, 
+            scoreB, 
+            winner, 
+            played: true 
+          };
         });
-        return updatedRound;
       });
-      
-      // Check if current round is complete and generate next round
-      const currentRoundIndex = newKnockout.length - 1;
-      const currentRound = newKnockout[currentRoundIndex];
-      
+
+      // 4. Generate next round if current round is complete
+      const currentRound = updatedRounds[roundIndex];
       if (currentRound.every(m => m.played)) {
         if (currentRound.length === 1) {
+          // Final
           setChampion(currentRound[0].winner);
-        } else if (!prev[currentRoundIndex + 1]) {
-          // Generate next round only if it doesn't exist
+        } else {
+          // Generate next round
           const nextRoundMatches = [];
           for (let i = 0; i < currentRound.length; i += 2) {
             const m1 = currentRound[i];
@@ -438,7 +554,7 @@ export const TournamentProvider = ({ children }) => {
             if (m1.winner && m2.winner) {
               nextRoundMatches.push({
                 id: `R${currentRound.length / 2}-${i / 2}`,
-                round: currentRound.length,
+                round: currentRound.length / 2,
                 teamA: m1.winner,
                 teamB: m2.winner,
                 scoreA: null,
@@ -449,14 +565,93 @@ export const TournamentProvider = ({ children }) => {
             }
           }
           if (nextRoundMatches.length > 0) {
-            newKnockout.push(nextRoundMatches);
+            updatedRounds.push(nextRoundMatches);
           }
         }
       }
-      
-      return newKnockout;
+
+      return updatedRounds;
     });
-  }, []);
+  }, [findMatchRound]);
+
+  // Reset a match result (undo) — clears subsequent rounds too
+  const resetMatchResult = useCallback((matchId) => {
+    console.log('[TournamentContext] resetMatchResult:', matchId);
+    setKnockoutMatches(prev => {
+      const roundIndex = findMatchRound(prev, matchId);
+      if (roundIndex === -1) return prev;
+
+      // Trim subsequent rounds and clear champion
+      const trimmedRounds = prev.slice(0, roundIndex + 1);
+      setChampion(null);
+
+      // Reset the match
+      const updatedRounds = trimmedRounds.map((round, ri) => {
+        if (ri !== roundIndex) return round;
+        return round.map(match => {
+          if (match.id !== matchId) return match;
+          return { ...match, scoreA: null, scoreB: null, winner: null, played: false };
+        });
+      });
+
+      return updatedRounds;
+    });
+  }, [findMatchRound]);
+
+  // Backward compat: setManualWinner now delegates to setMatchResult with default 2-0 score
+  const setManualWinner = useCallback((matchId, winnerId) => {
+    setKnockoutMatches(prev => {
+      const roundIndex = findMatchRound(prev, matchId);
+      if (roundIndex === -1) return prev;
+      
+      const match = prev[roundIndex].find(m => m.id === matchId);
+      if (!match) return prev;
+      
+      const scoreA = match.teamA?.id === winnerId ? 2 : 0;
+      const scoreB = match.teamB?.id === winnerId ? 2 : 0;
+      
+      // Can't call setMatchResult from inside setKnockoutMatches, so inline the logic
+      const trimmedRounds = prev.slice(0, roundIndex + 1);
+      setChampion(null);
+      
+      const updatedRounds = trimmedRounds.map((round, ri) => {
+        if (ri !== roundIndex) return round;
+        return round.map(m => {
+          if (m.id !== matchId) return m;
+          const winner = m.teamA?.id === winnerId ? m.teamA : m.teamB;
+          return { ...m, scoreA, scoreB, winner, played: true };
+        });
+      });
+
+      const currentRound = updatedRounds[roundIndex];
+      if (currentRound.every(m => m.played)) {
+        if (currentRound.length === 1) {
+          setChampion(currentRound[0].winner);
+        } else {
+          const nextRoundMatches = [];
+          for (let i = 0; i < currentRound.length; i += 2) {
+            const m1 = currentRound[i];
+            const m2 = currentRound[i + 1];
+            if (m1.winner && m2.winner) {
+              nextRoundMatches.push({
+                id: `R${currentRound.length / 2}-${i / 2}`,
+                round: currentRound.length / 2,
+                teamA: m1.winner,
+                teamB: m2.winner,
+                scoreA: null,
+                scoreB: null,
+                winner: null,
+                played: false
+              });
+            }
+          }
+          if (nextRoundMatches.length > 0) updatedRounds.push(nextRoundMatches);
+        }
+      }
+
+      return updatedRounds;
+    });
+  }, [findMatchRound]);
 
   // Manually reorder standings for a group
   const reorderStandings = useCallback((groupKey, newOrder) => {
@@ -542,6 +737,9 @@ export const TournamentProvider = ({ children }) => {
       knockoutMatches,
       champion,
       customThirds,
+      dataSource,
+      apiKey,
+      lastUpdated,
       startTournament,
       simulateMatch,
       simulateGroup,
@@ -551,12 +749,17 @@ export const TournamentProvider = ({ children }) => {
       resetTournament,
       setPhase,
       setManualWinner,
+      setMatchResult,
+      resetMatchResult,
       reorderStandings,
       setManualMatchResult,
       moveTeamUp,
       moveTeamDown,
       updateTeamPoints,
-      setManualThirdsOrder
+      setManualThirdsOrder,
+      loadLiveData,
+      saveApiKey,
+      switchToStatic,
     }}>
       {children}
     </TournamentContext.Provider>
