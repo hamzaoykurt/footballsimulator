@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, ChevronLeft, Search, Check, Play, Zap, RotateCcw, 
-  Sparkles, Plus, Trash2, Home, Globe, Star, Shield, ArrowRight
+  Sparkles, Plus, Trash2, Home, Globe, Star, Shield, ArrowRight,
+  ArrowUp, ArrowDown, Shuffle
 } from 'lucide-react';
 import { useCustomBracket } from '../context/CustomBracketContext';
 import { NATIONAL_TEAMS } from '../data/allNationalTeams';
@@ -30,6 +31,7 @@ const CustomBracketApp = ({ onBack, view }) => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('All');
+  const [setupStep, setSetupStep] = useState('teams'); // 'teams' | 'bracket'
   const scrollRef = useRef(null);
 
   // Determine which data to use
@@ -53,6 +55,7 @@ const CustomBracketApp = ({ onBack, view }) => {
   const handleToggleTeam = (team) => {
     if (selectedTeams.some(t => t.id === team.id)) {
       setSelectedTeams(selectedTeams.filter(t => t.id !== team.id));
+      setSetupStep('teams');
     } else {
       if (selectedTeams.length < bracketSize) {
         setSelectedTeams([...selectedTeams, team]);
@@ -73,6 +76,51 @@ const CustomBracketApp = ({ onBack, view }) => {
 
   const handleClearSelected = () => {
     setSelectedTeams([]);
+    setSetupStep('teams');
+  };
+
+  const handleContinueToBracketSetup = () => {
+    if (selectedTeams.length === bracketSize) {
+      setSetupStep('bracket');
+    }
+  };
+
+  const handleBackToTeamSelection = () => {
+    setSetupStep('teams');
+  };
+
+  const handleMoveSlot = (index, direction) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= selectedTeams.length) return;
+
+    const reordered = [...selectedTeams];
+    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+    setSelectedTeams(reordered);
+  };
+
+  const handleSwapSlotTeam = (slotIndex, teamId) => {
+    const replacementIndex = selectedTeams.findIndex(team => String(team.id) === teamId);
+    if (replacementIndex === -1 || replacementIndex === slotIndex) return;
+
+    const reordered = [...selectedTeams];
+    [reordered[slotIndex], reordered[replacementIndex]] = [reordered[replacementIndex], reordered[slotIndex]];
+    setSelectedTeams(reordered);
+  };
+
+  const handleShuffleSlots = () => {
+    setSelectedTeams([...selectedTeams].sort(() => Math.random() - 0.5));
+  };
+
+  const handleModeChange = (nextMode) => {
+    setMode(nextMode);
+    setSelectedTeams([]);
+    setSetupStep('teams');
+  };
+
+  const handleBracketSizeChange = (size) => {
+    setBracketSize(size);
+    setSelectedTeams([]);
+    setSetupStep('teams');
   };
 
   // Scroll to active round
@@ -110,7 +158,7 @@ const CustomBracketApp = ({ onBack, view }) => {
             </div>
           </header>
 
-          {/* SETUP STEP 1 & 2 */}
+          {/* SETUP */}
           {phase === 'SETUP' && (
             <div className="space-y-8 max-w-5xl mx-auto">
               
@@ -121,7 +169,7 @@ const CustomBracketApp = ({ onBack, view }) => {
                   <h2 className="text-lg font-bold text-zinc-300">1. Takım Türü</h2>
                   <div className="grid grid-cols-2 gap-4">
                     <button
-                      onClick={() => { setMode('national'); setSelectedTeams([]); }}
+                      onClick={() => handleModeChange('national')}
                       className={`flex flex-col items-center gap-3 p-5 rounded-2xl border transition-all duration-300
                         ${mode === 'national' 
                           ? 'bg-purple-950/30 border-purple-500/50 shadow-lg shadow-purple-950/20' 
@@ -131,7 +179,7 @@ const CustomBracketApp = ({ onBack, view }) => {
                       <span className="font-bold text-sm">Milli Takımlar</span>
                     </button>
                     <button
-                      onClick={() => { setMode('clubs'); setSelectedTeams([]); }}
+                      onClick={() => handleModeChange('clubs')}
                       className={`flex flex-col items-center gap-3 p-5 rounded-2xl border transition-all duration-300
                         ${mode === 'clubs' 
                           ? 'bg-purple-950/30 border-purple-500/50 shadow-lg shadow-purple-950/20' 
@@ -150,7 +198,7 @@ const CustomBracketApp = ({ onBack, view }) => {
                     {[4, 8, 16, 32].map(size => (
                       <button
                         key={size}
-                        onClick={() => { setBracketSize(size); setSelectedTeams([]); }}
+                        onClick={() => handleBracketSizeChange(size)}
                         className={`py-4 rounded-2xl border font-black text-lg transition-all duration-300
                           ${bracketSize === size 
                             ? 'bg-purple-950/40 border-purple-500/50 text-purple-400 shadow-lg' 
@@ -164,6 +212,7 @@ const CustomBracketApp = ({ onBack, view }) => {
               </div>
 
               {/* Team Picker Section */}
+              {setupStep === 'teams' && (
               <div className="bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-6 space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
@@ -285,17 +334,109 @@ const CustomBracketApp = ({ onBack, view }) => {
                 <div className="flex justify-end pt-4 border-t border-white/5">
                   <button
                     disabled={selectedTeams.length !== bracketSize}
-                    onClick={() => initializeBracket(selectedTeams)}
+                    onClick={handleContinueToBracketSetup}
                     className={`flex items-center gap-2 px-8 py-4 rounded-2xl text-base font-black tracking-wide transition-all shadow-xl
                       ${selectedTeams.length === bracketSize 
                         ? 'bg-gradient-to-r from-purple-700 to-indigo-600 hover:brightness-110 text-white shadow-purple-900/40 hover:scale-[1.02] active:scale-95' 
                         : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
                   >
-                    <span>FİKSTÜRÜ OLUŞTUR</span>
+                    <span>EŞLEŞMELERİ DÜZENLE</span>
                     <ArrowRight size={18} />
                   </button>
                 </div>
               </div>
+              )}
+
+              {setupStep === 'bracket' && (
+                <div className="bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-6 space-y-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl font-black text-white tracking-tight">4. Turnuva Ağacını Kur</h2>
+                      <p className="text-xs text-zinc-500">Her iki slot bir ilk tur maçı. Üst ve alt bloklar ağacın farklı taraflarını belirler.</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={handleBackToTeamSelection}
+                        className="px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-xl text-xs font-bold transition-all border border-zinc-700/50"
+                      >
+                        Takımlara Dön
+                      </button>
+                      <button
+                        onClick={handleShuffleSlots}
+                        className="inline-flex items-center gap-2 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-xl text-xs font-bold transition-all border border-zinc-700/50"
+                      >
+                        <Shuffle size={14} />
+                        Karıştır
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    {Array.from({ length: selectedTeams.length / 2 }).map((_, matchIndex) => {
+                      const slotA = matchIndex * 2;
+                      const slotB = slotA + 1;
+                      const roundGroupSize = Math.max(2, selectedTeams.length / 4);
+                      const sideLabel = matchIndex < selectedTeams.length / 4 ? 'Üst taraf' : 'Alt taraf';
+                      const blockNumber = Math.floor(matchIndex / roundGroupSize) + 1;
+
+                      return (
+                        <div
+                          key={matchIndex}
+                          className="rounded-2xl border border-white/10 bg-zinc-950/50 p-4 space-y-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <span className="text-[10px] font-black text-purple-400 uppercase tracking-[0.2em]">
+                                {sideLabel} · Blok {blockNumber}
+                              </span>
+                              <h3 className="text-sm font-black text-white">Eşleşme {matchIndex + 1}</h3>
+                            </div>
+                            <div className="text-[10px] text-zinc-500 font-bold">
+                              Slot {slotA + 1}-{slotB + 1}
+                            </div>
+                          </div>
+
+                          <BracketSlotEditor
+                            slotIndex={slotA}
+                            team={selectedTeams[slotA]}
+                            teams={selectedTeams}
+                            mode={mode}
+                            onMove={handleMoveSlot}
+                            onSwap={handleSwapSlotTeam}
+                          />
+                          <div className="flex items-center gap-3 text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em]">
+                            <div className="h-px flex-1 bg-white/10" />
+                            VS
+                            <div className="h-px flex-1 bg-white/10" />
+                          </div>
+                          <BracketSlotEditor
+                            slotIndex={slotB}
+                            team={selectedTeams[slotB]}
+                            teams={selectedTeams}
+                            mode={mode}
+                            onMove={handleMoveSlot}
+                            onSwap={handleSwapSlotTeam}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-white/5">
+                    <p className="text-xs text-zinc-500">
+                      Sıra aynen korunur: 1-2, 3-4, 5-6 şeklinde ilk tur maçları oluşur.
+                    </p>
+                    <button
+                      onClick={() => initializeBracket(selectedTeams)}
+                      className="flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-base font-black tracking-wide transition-all shadow-xl bg-gradient-to-r from-purple-700 to-indigo-600 hover:brightness-110 text-white shadow-purple-900/40 hover:scale-[1.02] active:scale-95"
+                    >
+                      <span>TURNUVAYI BAŞLAT</span>
+                      <Play size={18} fill="currentColor" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -513,6 +654,57 @@ const CustomBracketApp = ({ onBack, view }) => {
             </>
           )}
         </motion.div>
+      </div>
+    </div>
+  );
+};
+
+const BracketSlotEditor = ({ slotIndex, team, teams, mode, onMove, onSwap }) => {
+  if (!team) return null;
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-white/5 bg-zinc-900/70 p-3">
+      <div className="w-8 text-center text-[10px] font-black text-zinc-500">
+        #{slotIndex + 1}
+      </div>
+
+      <div className="w-10 h-10 rounded-xl overflow-hidden bg-zinc-950 border border-white/5 flex items-center justify-center p-1.5 shrink-0">
+        {mode === 'national' ? (
+          <img src={`https://flagcdn.com/w40/${team.code}.png`} className="w-full h-full object-contain" alt="" />
+        ) : (
+          <img src={team.logo} className="w-full h-full object-contain" alt="" />
+        )}
+      </div>
+
+      <select
+        value={String(team.id)}
+        onChange={(event) => onSwap(slotIndex, event.target.value)}
+        className="min-w-0 flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-purple-500 transition-all"
+      >
+        {teams.map(option => (
+          <option key={option.id} value={String(option.id)}>
+            {option.name}
+          </option>
+        ))}
+      </select>
+
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={() => onMove(slotIndex, -1)}
+          disabled={slotIndex === 0}
+          className="p-2 rounded-lg bg-zinc-950 border border-white/5 text-zinc-400 hover:text-white hover:border-purple-500/40 disabled:opacity-30 disabled:hover:text-zinc-400 disabled:hover:border-white/5 transition-all"
+          title="Yukarı taşı"
+        >
+          <ArrowUp size={14} />
+        </button>
+        <button
+          onClick={() => onMove(slotIndex, 1)}
+          disabled={slotIndex === teams.length - 1}
+          className="p-2 rounded-lg bg-zinc-950 border border-white/5 text-zinc-400 hover:text-white hover:border-purple-500/40 disabled:opacity-30 disabled:hover:text-zinc-400 disabled:hover:border-white/5 transition-all"
+          title="Aşağı taşı"
+        >
+          <ArrowDown size={14} />
+        </button>
       </div>
     </div>
   );

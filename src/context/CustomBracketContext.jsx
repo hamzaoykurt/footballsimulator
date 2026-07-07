@@ -56,21 +56,18 @@ export const CustomBracketProvider = ({ children }) => {
   const [rounds, setRounds] = useState([]); // array of match arrays
   const [champion, setChampion] = useState(null);
 
-  // Initialize bracket with selected teams (shuffled and paired)
+  // Initialize bracket with selected teams in the exact slot order chosen by the user.
   const initializeBracket = useCallback((teams) => {
     console.log('[CustomBracketContext] Initializing bracket with teams:', teams.length);
-    
-    // Shuffle teams
-    const shuffled = [...teams].sort(() => Math.random() - 0.5);
-    
+
     const initialMatches = [];
     const matchCount = teams.length / 2;
     
     for (let i = 0; i < matchCount; i++) {
       initialMatches.push({
         id: `R0-M${i}`,
-        teamA: shuffled[i * 2],
-        teamB: shuffled[i * 2 + 1],
+        teamA: teams[i * 2],
+        teamB: teams[i * 2 + 1],
         scoreA: null,
         scoreB: null,
         winner: null,
